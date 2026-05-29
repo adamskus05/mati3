@@ -1,0 +1,1 @@
+-- Optional seed for local development (run manually after migrations)

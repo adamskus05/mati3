@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mati
 
-## Getting Started
+Progressive Web App för gemensamma inköpslistor inom hushåll. Byggd med Next.js 15, Supabase och Vercel.
 
-First, run the development server:
+## Funktioner
+
+- E-post/lösenord-autentisering med persistent session
+- Hushåll med inbjudningskod, medlemmar och realtidssynk
+- Kategorier med färg, sortering och säker borttagning
+- Inköpslistor med mjuk radering och historik (read-only)
+- Varor med per-item köpt-markering, sök, drag-and-drop
+- Snabbknappar per hushåll
+- PWA: installerbar, offline-läsning av cachad data, dark/light mode
+
+## Kom igång
+
+### 1. Supabase
+
+1. Skapa ett projekt på [supabase.com](https://supabase.com) (rekommenderat: EU-region).
+2. Kopiera URL och anon key till `.env.local`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Kör migrationer:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx supabase link --project-ref YOUR_REF
+npm run db:push
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Under **Authentication → URL configuration**, lägg till:
+   - Site URL: `http://localhost:3000`
+   - Redirect URLs: `http://localhost:3000/auth/callback`
 
-## Learn More
+### 2. Lokal utveckling
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Öppna [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Vercel
 
-## Deploy on Vercel
+1. Importera repot till Vercel.
+2. Lägg till `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+3. Uppdatera Supabase redirect URLs med din produktionsdomän.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## PWA på mobil
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Android:** Chrome → menyn → "Lägg till på startskärmen"
+- **iOS:** Safari → Dela → "Lägg till på hemskärmen"
+
+Service worker är inaktiverad i `development`; testa install med `npm run build && npm start`.
+
+## Säkerhet
+
+Alla tabeller har Row Level Security. Användare ser endast data för hushåll de är medlemmar i. Kör `supabase db advisors` efter schemaändringar.
+
+## Projektstruktur
+
+```
+src/app/          # Next.js App Router
+src/components/   # UI och domänkomponenter
+src/lib/          # Supabase, queries, validators
+supabase/migrations/
+```
