@@ -324,20 +324,21 @@ CREATE TRIGGER shopping_lists_activity
   FOR EACH ROW EXECUTE FUNCTION public.log_shopping_list_events();
 
 -- ---------------------------------------------------------------------------
--- RLS
+-- RLS (idempotent — safe to re-run)
 -- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS "household_events_select" ON public.household_events;
 CREATE POLICY "household_events_select" ON public.household_events
   FOR SELECT TO authenticated
   USING (public.is_household_member(household_id));
 
 DROP POLICY IF EXISTS "households_update_member" ON public.households;
-
+DROP POLICY IF EXISTS "households_update_owner" ON public.households;
 CREATE POLICY "households_update_owner" ON public.households
   FOR UPDATE TO authenticated
   USING (public.is_household_owner(id))
   WITH CHECK (public.is_household_owner(id));
 
--- Owners may remove other members (not themselves via this policy)
+DROP POLICY IF EXISTS "household_members_delete_owner" ON public.household_members;
 CREATE POLICY "household_members_delete_owner" ON public.household_members
   FOR DELETE TO authenticated
   USING (
@@ -345,13 +346,24 @@ CREATE POLICY "household_members_delete_owner" ON public.household_members
     AND user_id <> auth.uid()
   );
 
+DROP POLICY IF EXISTS "household_members_update_owner" ON public.household_members;
 CREATE POLICY "household_members_update_owner" ON public.household_members
   FOR UPDATE TO authenticated
   USING (public.is_household_owner(household_id))
   WITH CHECK (public.is_household_owner(household_id));
 
--- Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.household_events;
+-- Realtime (skip if already added)
+DO $body$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'household_events'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.household_events;
+  END IF;
+END $body$;
 
 GRANT EXECUTE ON FUNCTION public.renew_household_invite_code(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.transfer_household_ownership(uuid, uuid) TO authenticated;
