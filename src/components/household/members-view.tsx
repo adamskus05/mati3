@@ -8,6 +8,7 @@ import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { showQueryLoading } from "@/lib/query/loading";
+import { profileDisplayName } from "@/lib/profiles/display-name";
 
 export function MembersView({ householdId }: { householdId: string }) {
   useHouseholdRealtime(householdId);
@@ -26,7 +27,7 @@ export function MembersView({ householdId }: { householdId: string }) {
       <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
       <ul className="space-y-2">
         {members.map((m) => {
-          const name = m.profile?.display_name ?? "Okänd";
+          const name = profileDisplayName(m.profile);
           const initials = name.slice(0, 2).toUpperCase();
           return (
             <li key={m.id}>

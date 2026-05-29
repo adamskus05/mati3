@@ -47,7 +47,7 @@ export async function fetchMembers(
       household_id,
       user_id,
       joined_at,
-      profiles ( display_name, email )
+      profiles!household_members_user_id_fkey ( display_name, email )
     `
     )
     .eq("household_id", householdId)

@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { showQueryLoading } from "@/lib/query/loading";
+import { profileDisplayName } from "@/lib/profiles/display-name";
 
 export function ListsView({ householdId }: { householdId: string }) {
   const online = useOnline();
@@ -154,7 +155,7 @@ export function ListsView({ householdId }: { householdId: string }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{list.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {list.creator?.display_name ?? "Okänd"} ·{" "}
+                        {profileDisplayName(list.creator)} ·{" "}
                         {new Date(list.updated_at).toLocaleDateString("sv-SE", {
                           day: "numeric",
                           month: "short",
