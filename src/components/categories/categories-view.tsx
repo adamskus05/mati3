@@ -39,6 +39,7 @@ import {
 import { DeleteCategoryDialog } from "@/components/categories/delete-category-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { showQueryLoading } from "@/lib/query/loading";
 
 function SortableCategory({
   category,
@@ -181,7 +182,9 @@ export function CategoriesView({ householdId }: { householdId: string }) {
     setOpen(true);
   }
 
-  if (isLoading) return <p className="text-muted-foreground">Laddar…</p>;
+  if (showQueryLoading(isLoading, categories)) {
+    return <p className="text-muted-foreground">Laddar…</p>;
+  }
 
   return (
     <div className="space-y-4">

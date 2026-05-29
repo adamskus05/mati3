@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { getNextSortOrder } from "@/lib/items/sort-order";
+import { getNextSortOrderFromItems } from "@/lib/items/sort-order";
+import { QUERY_KEYS } from "@/lib/constants";
 import { UNITS } from "@/lib/constants";
 import type { Category, ShoppingItem } from "@/lib/database.types";
 import { CategoryPicker } from "@/components/categories/category-picker";
@@ -36,6 +38,7 @@ export function ItemFormDialog({
   onSuccess: () => void;
 }) {
   const online = useOnline();
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("st");
@@ -78,24 +81,43 @@ export function ItemFormDialog({
       notes: notes.trim() || null,
     };
 
+    const cached =
+      queryClient.getQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId)) ?? [];
+
     if (item) {
+      const previous = cached;
+      queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+        old?.map((i) => (i.id === item.id ? { ...i, ...payload } : i))
+      );
       const { error } = await supabase
         .from("shopping_items")
         .update(payload)
         .eq("id", item.id);
       setLoading(false);
-      if (error) toast.error(error.message);
-      else onSuccess();
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+      } else onSuccess();
     } else {
-      const sort_order = await getNextSortOrder(supabase, listId, catId, false);
-      const { error } = await supabase.from("shopping_items").insert({
-        shopping_list_id: listId,
-        ...payload,
-        sort_order,
-      });
+      const sort_order = getNextSortOrderFromItems(cached, catId, false);
+      const { data, error } = await supabase
+        .from("shopping_items")
+        .insert({
+          shopping_list_id: listId,
+          ...payload,
+          sort_order,
+        })
+        .select()
+        .single();
       setLoading(false);
       if (error) toast.error(error.message);
-      else onSuccess();
+      else if (data) {
+        queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) => [
+          ...(old ?? []),
+          data,
+        ]);
+        onSuccess();
+      }
     }
   }
 

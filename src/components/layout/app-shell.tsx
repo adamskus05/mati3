@@ -37,7 +37,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
           <div>
             <Link href={`/h/${householdId}`} className="font-heading text-lg font-semibold">
@@ -60,7 +60,7 @@ export function AppShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-md safe-area-pb">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background safe-area-pb">
         <div className="mx-auto flex max-w-lg justify-around px-2 py-2">
           {items.map(({ href, label, icon: Icon }) => {
             const active =
@@ -71,8 +71,9 @@ export function AppShell({
               <Link
                 key={href}
                 href={href}
+                prefetch
                 className={cn(
-                  "flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-xs transition-colors",
+                  "flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-xs transition-colors active:scale-95 active:opacity-80",
                   active
                     ? "text-primary font-medium"
                     : "text-muted-foreground hover:text-foreground"

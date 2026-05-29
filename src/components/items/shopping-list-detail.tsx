@@ -14,7 +14,12 @@ import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { ArrowLeft, Plus, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS } from "@/lib/constants";
-import { getNextSortOrder, groupItemsByCategory } from "@/lib/items/sort-order";
+import {
+  getNextSortOrder,
+  getNextSortOrderFromItems,
+  groupItemsByCategory,
+} from "@/lib/items/sort-order";
+import { showQueryLoading } from "@/lib/query/loading";
 import { useListItemsRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
 import type { Category, ShoppingItem, ItemPreset } from "@/lib/database.types";
@@ -116,16 +121,16 @@ export function ShoppingListDetail({
     return ordered;
   }, [categories, grouped]);
 
-  async function toggleComplete(item: ShoppingItem) {
+  function toggleComplete(item: ShoppingItem) {
     if (!online || readOnly) {
       if (!online) toast.error("Ingen anslutning");
       return;
     }
-    const supabase = createClient();
     const completed = !item.completed;
-    const sort_order = await getNextSortOrder(
-      supabase,
-      listId,
+    const current =
+      queryClient.getQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId)) ?? items;
+    const sort_order = getNextSortOrderFromItems(
+      current,
       item.category_id,
       completed
     );
@@ -140,24 +145,59 @@ export function ShoppingListDetail({
       )
     );
 
-    const { error } = await supabase
-      .from("shopping_items")
-      .update({ completed, sort_order })
-      .eq("id", item.id);
+    void (async () => {
+      const supabase = createClient();
+      let finalOrder = sort_order;
+      try {
+        finalOrder = await getNextSortOrder(
+          supabase,
+          listId,
+          item.category_id,
+          completed
+        );
+        if (finalOrder !== sort_order) {
+          queryClient.setQueryData<ShoppingItem[]>(
+            QUERY_KEYS.items(listId),
+            (old) =>
+              old?.map((i) =>
+                i.id === item.id ? { ...i, sort_order: finalOrder } : i
+              )
+          );
+        }
+      } catch {
+        /* keep optimistic sort_order */
+      }
 
-    if (error) {
-      toast.error(error.message);
-      queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
-    } else {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
-    }
+      const { error } = await supabase
+        .from("shopping_items")
+        .update({ completed, sort_order: finalOrder })
+        .eq("id", item.id);
+
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+      }
+    })();
   }
 
-  async function deleteItem(id: string) {
+  function deleteItem(id: string) {
     if (!online || readOnly) return;
-    const { error } = await createClient().from("shopping_items").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
+    const previous = queryClient.getQueryData<ShoppingItem[]>(
+      QUERY_KEYS.items(listId)
+    );
+    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+      old?.filter((i) => i.id !== id)
+    );
+    void createClient()
+      .from("shopping_items")
+      .delete()
+      .eq("id", id)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        }
+      });
   }
 
   async function handleDragEnd(
@@ -177,9 +217,19 @@ export function ShoppingListDetail({
     const oldIndex = groupItems.findIndex((i) => i.id === active.id);
     const newIndex = groupItems.findIndex((i) => i.id === over.id);
     const reordered = arrayMove(groupItems, oldIndex, newIndex);
+    const previous = queryClient.getQueryData<ShoppingItem[]>(
+      QUERY_KEYS.items(listId)
+    );
+    const orderMap = new Map(reordered.map((item, index) => [item.id, index]));
+
+    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+      old?.map((i) =>
+        orderMap.has(i.id) ? { ...i, sort_order: orderMap.get(i.id)! } : i
+      )
+    );
 
     const supabase = createClient();
-    await Promise.all(
+    const results = await Promise.all(
       reordered.map((item, index) =>
         supabase
           .from("shopping_items")
@@ -187,44 +237,84 @@ export function ShoppingListDetail({
           .eq("id", item.id)
       )
     );
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
+    if (results.some((r) => r.error)) {
+      toast.error("Kunde inte spara ordning");
+      queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+    }
   }
 
-  async function addFromPreset(preset: ItemPreset) {
+  function addFromPreset(preset: ItemPreset) {
     if (!online || readOnly) {
       toast.error("Ingen anslutning");
       return;
     }
-    const supabase = createClient();
-    const sort_order = await getNextSortOrder(
-      supabase,
-      listId,
+    const current =
+      queryClient.getQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId)) ?? items;
+    const sort_order = getNextSortOrderFromItems(
+      current,
       preset.category_id,
       false
     );
-    const { error } = await supabase.from("shopping_items").insert({
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const optimistic: ShoppingItem = {
+      id: tempId,
       shopping_list_id: listId,
       name: preset.name,
       quantity: preset.default_quantity,
       unit: preset.default_unit,
       category_id: preset.category_id,
       sort_order,
-    });
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${preset.name} tillagd`);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
-    }
+      completed: false,
+      notes: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) => [
+      ...(old ?? []),
+      optimistic,
+    ]);
+    toast.success(`${preset.name} tillagd`);
+
+    void (async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("shopping_items")
+        .insert({
+          shopping_list_id: listId,
+          name: preset.name,
+          quantity: preset.default_quantity,
+          unit: preset.default_unit,
+          category_id: preset.category_id,
+          sort_order,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+          old?.filter((i) => i.id !== tempId)
+        );
+        return;
+      }
+
+      queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+        old?.map((i) => (i.id === tempId ? data : i))
+      );
+    })();
   }
 
-  if (isLoading) return <p className="text-muted-foreground">Laddar…</p>;
+  if (showQueryLoading(isLoading, items)) {
+    return <p className="text-muted-foreground">Laddar…</p>;
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Link
           href={readOnly ? `/h/${householdId}/history` : `/h/${householdId}`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted active:scale-95 active:bg-muted"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -291,10 +381,7 @@ export function ShoppingListDetail({
             onOpenChange={setAddOpen}
             listId={listId}
             categories={categories}
-            onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
-              setAddOpen(false);
-            }}
+            onSuccess={() => setAddOpen(false)}
           />
           <ItemFormDialog
             open={!!editItem}
@@ -302,10 +389,7 @@ export function ShoppingListDetail({
             listId={listId}
             categories={categories}
             item={editItem ?? undefined}
-            onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
-              setEditItem(null);
-            }}
+            onSuccess={() => setEditItem(null)}
           />
         </>
       )}

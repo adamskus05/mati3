@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Plus, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { showQueryLoading } from "@/lib/query/loading";
 
 export function ListsView({ householdId }: { householdId: string }) {
   const online = useOnline();
@@ -97,7 +98,9 @@ export function ListsView({ householdId }: { householdId: string }) {
     toast.success("Lista borttagen");
   }
 
-  if (isLoading) return <p className="text-muted-foreground">Laddar listor…</p>;
+  if (showQueryLoading(isLoading, lists)) {
+    return <p className="text-muted-foreground">Laddar listor…</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -145,7 +148,8 @@ export function ListsView({ householdId }: { householdId: string }) {
                 <CardContent className="flex items-center gap-2 p-0">
                   <Link
                     href={`/h/${householdId}/lists/${list.id}`}
-                    className="flex flex-1 items-center gap-3 p-4 transition-colors hover:bg-muted/50"
+                    prefetch
+                    className="flex flex-1 items-center gap-3 p-4 transition-colors hover:bg-muted/50 active:bg-muted"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{list.name}</p>

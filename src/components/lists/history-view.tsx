@@ -8,6 +8,7 @@ import { fetchArchivedLists } from "@/lib/queries/lists";
 import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
+import { showQueryLoading } from "@/lib/query/loading";
 
 export function HistoryView({ householdId }: { householdId: string }) {
   useHouseholdRealtime(householdId);
@@ -17,7 +18,9 @@ export function HistoryView({ householdId }: { householdId: string }) {
     queryFn: () => fetchArchivedLists(createClient(), householdId),
   });
 
-  if (isLoading) return <p className="text-muted-foreground">Laddar…</p>;
+  if (showQueryLoading(isLoading, lists)) {
+    return <p className="text-muted-foreground">Laddar…</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -34,7 +37,11 @@ export function HistoryView({ householdId }: { householdId: string }) {
           {lists.map((list) => (
             <li key={list.id}>
               <Card className="rounded-2xl">
-                <Link href={`/h/${householdId}/history/${list.id}`}>
+                <Link
+                  href={`/h/${householdId}/history/${list.id}`}
+                  prefetch
+                  className="block active:bg-muted/50"
+                >
                   <CardContent className="flex items-center gap-3 py-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">{list.name}</p>

@@ -2,7 +2,6 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { motion } from "framer-motion";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import type { ShoppingItem } from "@/lib/database.types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,10 +41,9 @@ export function ItemRow({
       : item.unit ?? "";
 
   return (
-    <motion.li
+    <li
       ref={setNodeRef}
       style={style}
-      layout
       className={cn(
         "flex items-center gap-2 rounded-xl border border-transparent bg-card px-2 py-2.5",
         item.completed && "opacity-50",
@@ -55,7 +53,7 @@ export function ItemRow({
       {!readOnly && (
         <button
           type="button"
-          className="touch-none text-muted-foreground"
+          className="touch-none text-muted-foreground active:opacity-60"
           {...attributes}
           {...listeners}
         >
@@ -70,7 +68,7 @@ export function ItemRow({
       />
       <button
         type="button"
-        className="flex-1 min-w-0 text-left"
+        className="flex-1 min-w-0 text-left active:opacity-70"
         onClick={onToggle}
         disabled={readOnly}
       >
@@ -101,6 +99,6 @@ export function ItemRow({
           </Button>
         </div>
       )}
-    </motion.li>
+    </li>
   );
 }

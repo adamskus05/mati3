@@ -26,6 +26,22 @@ export async function getNextSortOrder(
   return max + 1;
 }
 
+/** Instant sort_order from in-memory list (no network round-trip). */
+export function getNextSortOrderFromItems<
+  T extends { category_id: string | null; completed: boolean; sort_order: number },
+>(items: T[], categoryId: string | null, completed: boolean): number {
+  let max = -1;
+  for (const item of items) {
+    if (item.completed !== completed) continue;
+    const sameCategory =
+      categoryId === null
+        ? item.category_id === null
+        : item.category_id === categoryId;
+    if (sameCategory && item.sort_order > max) max = item.sort_order;
+  }
+  return max + 1;
+}
+
 export function sortItemsInCategory<
   T extends { completed: boolean; sort_order: number },
 >(items: T[]): T[] {

@@ -7,6 +7,7 @@ import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { showQueryLoading } from "@/lib/query/loading";
 
 export function MembersView({ householdId }: { householdId: string }) {
   useHouseholdRealtime(householdId);
@@ -16,7 +17,9 @@ export function MembersView({ householdId }: { householdId: string }) {
     queryFn: () => fetchMembers(createClient(), householdId),
   });
 
-  if (isLoading) return <p className="text-muted-foreground">Laddar…</p>;
+  if (showQueryLoading(isLoading, members)) {
+    return <p className="text-muted-foreground">Laddar…</p>;
+  }
 
   return (
     <div className="space-y-4">

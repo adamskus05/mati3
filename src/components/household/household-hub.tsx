@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useOnline } from "@/hooks/use-online";
 import { Home, Plus } from "lucide-react";
+import { showQueryLoading } from "@/lib/query/loading";
 
 export function HouseholdHub() {
   const router = useRouter();
@@ -81,7 +83,7 @@ export function HouseholdHub() {
     goToHousehold(data.id);
   }
 
-  if (isLoading) {
+  if (showQueryLoading(isLoading, households)) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <p className="text-muted-foreground">Laddar…</p>
@@ -104,33 +106,43 @@ export function HouseholdHub() {
         </div>
 
         {lastHousehold && (
-          <Card
-            className="cursor-pointer rounded-2xl transition-shadow hover:shadow-md"
-            onClick={() => goToHousehold(lastHousehold.id)}
+          <Link
+            href={`/h/${lastHousehold.id}`}
+            prefetch
+            onClick={() => localStorage.setItem(LAST_HOUSEHOLD_KEY, lastHousehold.id)}
+            className="block rounded-2xl transition-shadow hover:shadow-md active:scale-[0.99] active:opacity-90"
           >
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Home className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Fortsätt till {lastHousehold.name}</CardTitle>
-            </CardHeader>
-          </Card>
+            <Card className="rounded-2xl">
+              <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                <Home className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">
+                  Fortsätt till {lastHousehold.name}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </Link>
         )}
 
         {households.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Dina hushåll</p>
             {households.map((h) => (
-              <Card
+              <Link
                 key={h.id}
-                className="cursor-pointer rounded-2xl"
-                onClick={() => goToHousehold(h.id)}
+                href={`/h/${h.id}`}
+                prefetch
+                onClick={() => localStorage.setItem(LAST_HOUSEHOLD_KEY, h.id)}
+                className="block rounded-2xl active:scale-[0.99] active:opacity-90"
               >
-                <CardContent className="flex items-center justify-between py-4">
-                  <span className="font-medium">{h.name}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {h.invite_code}
-                  </span>
-                </CardContent>
-              </Card>
+                <Card className="rounded-2xl">
+                  <CardContent className="flex items-center justify-between py-4">
+                    <span className="font-medium">{h.name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {h.invite_code}
+                    </span>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

@@ -127,6 +127,14 @@
   html {
     @apply font-sans;
     background-color: var(--background);
+    -webkit-tap-highlight-color: transparent;
+  }
+  a,
+  button,
+  [role="button"],
+  label[for],
+  summary {
+    touch-action: manipulation;
   }
 }
 

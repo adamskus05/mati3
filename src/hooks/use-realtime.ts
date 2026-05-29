@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS } from "@/lib/constants";
+import { debouncedInvalidate } from "@/lib/query/debounced-invalidate";
 
 export function useHouseholdRealtime(householdId: string) {
   const queryClient = useQueryClient();
@@ -21,12 +22,8 @@ export function useHouseholdRealtime(householdId: string) {
           filter: `household_id=eq.${householdId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.lists(householdId),
-          });
-          queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.listHistory(householdId),
-          });
+          debouncedInvalidate(queryClient, QUERY_KEYS.lists(householdId));
+          debouncedInvalidate(queryClient, QUERY_KEYS.listHistory(householdId));
         }
       )
       .on(
@@ -38,9 +35,7 @@ export function useHouseholdRealtime(householdId: string) {
           filter: `household_id=eq.${householdId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.categories(householdId),
-          });
+          debouncedInvalidate(queryClient, QUERY_KEYS.categories(householdId));
         }
       )
       .on(
@@ -52,9 +47,7 @@ export function useHouseholdRealtime(householdId: string) {
           filter: `household_id=eq.${householdId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.members(householdId),
-          });
+          debouncedInvalidate(queryClient, QUERY_KEYS.members(householdId));
         }
       )
       .on(
@@ -66,9 +59,7 @@ export function useHouseholdRealtime(householdId: string) {
           filter: `household_id=eq.${householdId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.presets(householdId),
-          });
+          debouncedInvalidate(queryClient, QUERY_KEYS.presets(householdId));
         }
       )
       .subscribe();
@@ -95,7 +86,7 @@ export function useListItemsRealtime(listId: string) {
           filter: `shopping_list_id=eq.${listId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
+          debouncedInvalidate(queryClient, QUERY_KEYS.items(listId));
         }
       )
       .subscribe();
