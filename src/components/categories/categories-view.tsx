@@ -28,7 +28,6 @@ import type { Category } from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -54,31 +53,113 @@ function SortableCategory({
     useSortable({ id: category.id });
 
   return (
-    <Card
+    <li
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={cn("rounded-2xl", isDragging && "shadow-lg opacity-90")}
+      className={cn(
+        "flex items-center gap-2 border-b border-border/60 px-2 py-2 last:border-b-0",
+        isDragging && "z-10 bg-muted/80 shadow-sm"
+      )}
     >
-      <CardContent className="flex items-center gap-3 py-3">
-        <button type="button" className="touch-none" {...attributes} {...listeners}>
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
-        <span
-          className="h-8 w-8 shrink-0 rounded-full"
-          style={{ backgroundColor: category.color }}
+      <button
+        type="button"
+        className="touch-none shrink-0 p-1 text-muted-foreground active:opacity-60"
+        aria-label="Flytta kategori"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span
+        className="h-5 w-5 shrink-0 rounded-full ring-1 ring-black/5"
+        style={{ backgroundColor: category.color }}
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{category.name}</span>
+      <div className="flex shrink-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onEdit}
+          aria-label={`Redigera ${category.name}`}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={onDelete}
+          aria-label={`Ta bort ${category.name}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function CategoryForm({
+  name,
+  color,
+  onNameChange,
+  onColorChange,
+  onSubmit,
+}: {
+  name: string;
+  color: string;
+  onNameChange: (v: string) => void;
+  onColorChange: (v: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="catName" className="text-xs">
+          Namn
+        </Label>
+        <Input
+          id="catName"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          required
+          className="h-9 rounded-lg"
         />
-        <span className="flex-1 font-medium">{category.name}</span>
-        <Button variant="ghost" size="icon" onClick={onEdit}>
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete}>
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Färg</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORY_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={cn(
+                "h-7 w-7 rounded-full ring-2 ring-offset-1 transition-transform active:scale-95",
+                color === c ? "ring-primary" : "ring-transparent"
+              )}
+              style={{ backgroundColor: c }}
+              onClick={() => onColorChange(c)}
+              aria-label={`Välj färg ${c}`}
+            />
+          ))}
+        </div>
+        <Input
+          type="color"
+          value={color}
+          onChange={(e) => onColorChange(e.target.value)}
+          className="h-8 w-full cursor-pointer rounded-lg p-0.5"
+        />
+      </div>
+      <Button type="submit" className="h-9 w-full rounded-lg">
+        Spara
+      </Button>
+    </form>
   );
 }
 
@@ -183,86 +264,69 @@ export function CategoriesView({ householdId }: { householdId: string }) {
   }
 
   if (showQueryLoading(isLoading, categories)) {
-    return <p className="text-muted-foreground">Laddar…</p>;
+    return <p className="text-sm text-muted-foreground">Laddar…</p>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-xl font-semibold">Kategorier</h1>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">Kategorier</h1>
+          {categories.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {categories.length} st · dra för att sortera
+            </p>
+          )}
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground"
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground active:opacity-90"
             onClick={openCreate}
           >
             <Plus className="h-4 w-4" />
             Ny
           </DialogTrigger>
-          <DialogContent className="rounded-2xl">
+          <DialogContent className="max-w-sm rounded-2xl">
             <DialogHeader>
               <DialogTitle>{editCat ? "Redigera" : "Ny kategori"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={saveCategory} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="catName">Namn</Label>
-                <Input
-                  id="catName"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Färg</Label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORY_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={cn(
-                        "h-8 w-8 rounded-full ring-2 ring-offset-2 transition-all",
-                        color === c ? "ring-primary" : "ring-transparent"
-                      )}
-                      style={{ backgroundColor: c }}
-                      onClick={() => setColor(c)}
-                    />
-                  ))}
-                </div>
-                <Input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="h-10 w-full"
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Spara
-              </Button>
-            </form>
+            <CategoryForm
+              name={name}
+              color={color}
+              onNameChange={setName}
+              onColorChange={setColor}
+              onSubmit={saveCategory}
+            />
           </DialogContent>
         </Dialog>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={categories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          <ul className="space-y-2">
-            {categories.map((cat) => (
-              <li key={cat.id}>
+      {categories.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Inga kategorier ännu
+        </p>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={categories.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="overflow-hidden rounded-xl border border-border/60 bg-card">
+              {categories.map((cat) => (
                 <SortableCategory
+                  key={cat.id}
                   category={cat}
                   onEdit={() => openEdit(cat)}
                   onDelete={() => setDeleteCat(cat)}
                 />
-              </li>
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
-
-      {categories.length === 0 && (
-        <p className="text-center text-muted-foreground py-8">
-          Inga kategorier ännu
-        </p>
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       {deleteCat && (
