@@ -1,14 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Next sort_order within list + category, optionally filtered by completed group. */
 export async function getNextSortOrder(
   supabase: SupabaseClient,
   listId: string,
-  categoryId: string | null
+  categoryId: string | null,
+  completed: boolean
 ): Promise<number> {
   let query = supabase
     .from("shopping_items")
     .select("sort_order")
     .eq("shopping_list_id", listId)
+    .eq("completed", completed)
     .order("sort_order", { ascending: false })
     .limit(1);
 
@@ -21,6 +24,15 @@ export async function getNextSortOrder(
   const { data } = await query;
   const max = data?.[0]?.sort_order ?? -1;
   return max + 1;
+}
+
+export function sortItemsInCategory<
+  T extends { completed: boolean; sort_order: number },
+>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    return a.sort_order - b.sort_order;
+  });
 }
 
 export function sortItemsForDisplay<

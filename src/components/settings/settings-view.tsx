@@ -19,12 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { CategoryPicker } from "@/components/categories/category-picker";
+import { ThemePicker } from "@/components/settings/theme-picker";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -146,6 +147,8 @@ export function SettingsView({
         </CardContent>
       </Card>
 
+      <ThemePicker />
+
       <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="text-base">Hushållskod</CardTitle>
@@ -196,8 +199,8 @@ export function SettingsView({
                       value={presetUnit}
                       onValueChange={(v) => v && setPresetUnit(v)}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
+                      <SelectTrigger className="w-full">
+                        <span className="text-sm">{presetUnit}</span>
                       </SelectTrigger>
                       <SelectContent>
                         {UNITS.map((u) => (
@@ -209,25 +212,12 @@ export function SettingsView({
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Kategori</Label>
-                  <Select
-                    value={presetCat}
-                    onValueChange={(v) => v && setPresetCat(v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Ingen</SelectItem>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CategoryPicker
+                  categories={categories}
+                  value={presetCat}
+                  onChange={setPresetCat}
+                  label="Standardkategori"
+                />
                 <Button type="submit" className="w-full">
                   Spara
                 </Button>

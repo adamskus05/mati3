@@ -126,15 +126,31 @@ export function ShoppingListDetail({
     const sort_order = await getNextSortOrder(
       supabase,
       listId,
-      item.category_id
+      item.category_id,
+      completed
     );
+
+    const previous = queryClient.getQueryData<ShoppingItem[]>(
+      QUERY_KEYS.items(listId)
+    );
+
+    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
+      old?.map((i) =>
+        i.id === item.id ? { ...i, completed, sort_order } : i
+      )
+    );
+
     const { error } = await supabase
       .from("shopping_items")
       .update({ completed, sort_order })
       .eq("id", item.id);
-    if (error) toast.error(error.message);
-    else
+
+    if (error) {
+      toast.error(error.message);
+      queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+    } else {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
+    }
   }
 
   async function deleteItem(id: string) {
@@ -180,7 +196,12 @@ export function ShoppingListDetail({
       return;
     }
     const supabase = createClient();
-    const sort_order = await getNextSortOrder(supabase, listId, preset.category_id);
+    const sort_order = await getNextSortOrder(
+      supabase,
+      listId,
+      preset.category_id,
+      false
+    );
     const { error } = await supabase.from("shopping_items").insert({
       shopping_list_id: listId,
       name: preset.name,

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { MatiThemeApplier } from "@/components/theme/mati-theme-applier";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -46,9 +47,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sv" suppressHydrationWarning>
+    <html lang="sv" suppressHydrationWarning data-mati-theme="sage">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k='mati:colorTheme',v=localStorage.getItem(k),a=['sage','berry','ocean','sunset','forest','lavender'];document.documentElement.setAttribute('data-mati-theme',a.includes(v)?v:'sage')}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={`${dmSans.variable} font-sans antialiased`}>
         <ThemeProvider>
+          <MatiThemeApplier />
           <QueryProvider>{children}</QueryProvider>
           <Toaster richColors position="top-center" />
         </ThemeProvider>

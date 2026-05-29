@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getNextSortOrder } from "@/lib/items/sort-order";
 import { UNITS } from "@/lib/constants";
 import type { Category, ShoppingItem } from "@/lib/database.types";
+import { CategoryPicker } from "@/components/categories/category-picker";
 import {
   Dialog,
   DialogContent,
@@ -15,13 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useOnline } from "@/hooks/use-online";
 
@@ -92,7 +87,7 @@ export function ItemFormDialog({
       if (error) toast.error(error.message);
       else onSuccess();
     } else {
-      const sort_order = await getNextSortOrder(supabase, listId, catId);
+      const sort_order = await getNextSortOrder(supabase, listId, catId, false);
       const { error } = await supabase.from("shopping_items").insert({
         shopping_list_id: listId,
         ...payload,
@@ -106,7 +101,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-2xl sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{item ? "Redigera vara" : "Lägg till vara"}</DialogTitle>
         </DialogHeader>
@@ -119,6 +114,7 @@ export function ItemFormDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="Mjölk"
               required
+              className="rounded-xl"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -131,43 +127,35 @@ export function ItemFormDialog({
                 min="0"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
+                className="rounded-xl"
               />
             </div>
             <div className="space-y-2">
               <Label>Enhet</Label>
-              <Select value={unit} onValueChange={(v) => v && setUnit(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-1.5">
+                {UNITS.map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setUnit(u)}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
+                      unit === u
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Kategori</Label>
-            <Select
-              value={categoryId}
-              onValueChange={(v) => v && setCategoryId(v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Välj kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Okategoriserad</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CategoryPicker
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+          />
           <div className="space-y-2">
             <Label htmlFor="notes">Kommentar</Label>
             <Textarea
@@ -175,9 +163,10 @@ export function ItemFormDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
+              className="rounded-xl"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full rounded-xl" disabled={loading}>
             {item ? "Spara" : "Lägg till"}
           </Button>
         </form>
