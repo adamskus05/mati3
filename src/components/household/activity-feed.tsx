@@ -5,9 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { fetchHouseholdEvents, fetchMembers } from "@/lib/queries/households";
 import { QUERY_KEYS } from "@/lib/constants";
-import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { formatHouseholdEvent } from "@/lib/household/event-labels";
-import { profileDisplayName } from "@/lib/profiles/display-name";
+import { isSchemaMissingError } from "@/lib/household/roles";
 
 export function ActivityFeed({
   householdId,
@@ -16,16 +15,20 @@ export function ActivityFeed({
   householdId: string;
   userId: string;
 }) {
-  useHouseholdRealtime(householdId);
-
-  const { data: events = [] } = useQuery({
+  const {
+    data: events = [],
+    isError: eventsError,
+    error: eventsQueryError,
+  } = useQuery({
     queryKey: QUERY_KEYS.events(householdId),
     queryFn: () => fetchHouseholdEvents(createClient(), householdId),
+    throwOnError: false,
   });
 
   const { data: members = [] } = useQuery({
     queryKey: QUERY_KEYS.members(householdId),
     queryFn: () => fetchMembers(createClient(), householdId),
+    throwOnError: false,
   });
 
   const membersByUserId = useMemo(() => {
@@ -35,6 +38,31 @@ export function ActivityFeed({
     }
     return map;
   }, [members]);
+
+  if (
+    eventsError &&
+    eventsQueryError &&
+    typeof eventsQueryError === "object" &&
+    "message" in eventsQueryError &&
+    isSchemaMissingError(eventsQueryError as { code?: string; message?: string })
+  ) {
+    return (
+      <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+        Aktivitetsloggen kräver en databasuppdatering. Kör migrationen{" "}
+        <code className="text-xs">20250529100400_household_roles_events.sql</code> i
+        Supabase.
+      </p>
+    );
+  }
+
+  if (eventsError) {
+    return (
+      <p className="text-sm text-destructive">
+        Kunde inte hämta aktivitet:{" "}
+        {eventsQueryError instanceof Error ? eventsQueryError.message : "Okänt fel"}
+      </p>
+    );
+  }
 
   if (events.length === 0) {
     return (
@@ -51,7 +79,7 @@ export function ActivityFeed({
           <p className="text-sm leading-snug">
             {formatHouseholdEvent(
               event.event_type,
-              event.metadata,
+              event.metadata ?? {},
               event.actor,
               membersByUserId,
               userId

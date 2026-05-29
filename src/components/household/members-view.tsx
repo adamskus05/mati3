@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMembers, fetchMyMembership } from "@/lib/queries/households";
-import { HOUSEHOLD_ROLES, QUERY_KEYS } from "@/lib/constants";
+import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
+import { roleLabel } from "@/lib/household/roles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -40,14 +41,24 @@ export function MembersView({
 
   useHouseholdRealtime(householdId);
 
-  const { data: membership } = useQuery({
+  const {
+    data: membership,
+    isError: membershipError,
+  } = useQuery({
     queryKey: QUERY_KEYS.myMembership(householdId, userId),
     queryFn: () => fetchMyMembership(createClient(), householdId, userId),
+    throwOnError: false,
   });
 
-  const { data: members = [], isLoading } = useQuery({
+  const {
+    data: members = [],
+    isLoading,
+    isError: membersError,
+    error: membersQueryError,
+  } = useQuery({
     queryKey: QUERY_KEYS.members(householdId),
     queryFn: () => fetchMembers(createClient(), householdId),
+    throwOnError: false,
   });
 
   const isOwner = membership?.role === "owner";
@@ -93,6 +104,20 @@ export function MembersView({
     return <p className="text-muted-foreground">Laddar…</p>;
   }
 
+  if (membersError) {
+    return (
+      <div className="space-y-2">
+        <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
+        <p className="text-sm text-destructive">
+          Kunde inte hämta medlemmar:{" "}
+          {membersQueryError instanceof Error
+            ? membersQueryError.message
+            : "Okänt fel"}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -102,12 +127,13 @@ export function MembersView({
         </p>
       </div>
 
-      <ul className="overflow-hidden rounded-xl border border-border/60 bg-card divide-y divide-border/60">
+      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
         {members.map((m) => {
           const name =
             m.user_id === userId ? "Du" : profileDisplayName(m.profile);
-          const initials = profileDisplayName(m.profile).slice(0, 2).toUpperCase();
+          const initials = profileDisplayName(m.profile).slice(0, 2).toUpperCase() || "?";
           const isSelf = m.user_id === userId;
+          const label = roleLabel(m.role);
 
           return (
             <li key={m.id}>
@@ -122,15 +148,19 @@ export function MembersView({
                     <p className="truncate text-sm font-medium">{name}</p>
                     <Badge
                       variant={m.role === "owner" ? "default" : "secondary"}
-                      className="shrink-0 text-[10px] px-1.5 py-0"
+                      className="shrink-0 gap-0.5 px-1.5 py-0 text-[10px]"
                     >
-                      {m.role === "owner" && <Crown className="mr-0.5 h-3 w-3" />}
-                      {HOUSEHOLD_ROLES[m.role]}
+                      {m.role === "owner" ? (
+                        <Crown className="h-3 w-3" aria-hidden />
+                      ) : null}
+                      {label}
                     </Badge>
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {m.profile?.email}
-                  </p>
+                  {m.profile?.email ? (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {m.profile.email}
+                    </p>
+                  ) : null}
                 </div>
                 {isOwner && !isSelf && (
                   <div className="flex shrink-0 gap-0.5">
@@ -167,6 +197,12 @@ export function MembersView({
           );
         })}
       </ul>
+
+      {membershipError && (
+        <p className="text-xs text-muted-foreground">
+          Kunde inte verifiera din roll — vissa ägarfunktioner kan saknas.
+        </p>
+      )}
 
       {isOwner && otherMembers.length > 0 && (
         <p className="text-xs text-muted-foreground">

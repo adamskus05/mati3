@@ -24,6 +24,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             gcTime: 1000 * 60 * 60 * 24,
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
+            throwOnError: false,
           },
         },
       })

@@ -5,6 +5,31 @@ import type {
   HouseholdMemberRole,
   MemberWithProfile,
 } from "@/lib/database.types";
+import { isSchemaMissingError, normalizeRole } from "@/lib/household/roles";
+
+type MemberRow = {
+  id: string;
+  household_id: string;
+  user_id: string;
+  joined_at: string;
+  role?: string | null;
+  profiles:
+    | { display_name: string | null; email: string }
+    | { display_name: string | null; email: string }[]
+    | null;
+};
+
+function mapMemberRow(row: MemberRow): MemberWithProfile {
+  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  return {
+    id: row.id,
+    household_id: row.household_id,
+    user_id: row.user_id,
+    role: normalizeRole(row.role),
+    joined_at: row.joined_at,
+    profile: (profile ?? { display_name: null, email: "" }) as MemberWithProfile["profile"],
+  };
+}
 
 export async function fetchUserHouseholds(
   supabase: SupabaseClient
@@ -44,7 +69,7 @@ export async function fetchMembers(
   supabase: SupabaseClient,
   householdId: string
 ): Promise<MemberWithProfile[]> {
-  const { data, error } = await supabase
+  const withRole = await supabase
     .from("household_members")
     .select(
       `
@@ -53,25 +78,38 @@ export async function fetchMembers(
       user_id,
       role,
       joined_at,
-      profiles!household_members_user_id_fkey ( display_name, email )
+      profiles ( display_name, email )
     `
     )
     .eq("household_id", householdId)
     .order("joined_at");
 
-  if (error) throw error;
+  if (!withRole.error) {
+    return (withRole.data ?? []).map((row) => mapMemberRow(row as MemberRow));
+  }
 
-  return (data ?? []).map((row) => {
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    return {
-      id: row.id,
-      household_id: row.household_id,
-      user_id: row.user_id,
-      role: row.role as HouseholdMemberRole,
-      joined_at: row.joined_at,
-      profile: profile as MemberWithProfile["profile"],
-    };
-  });
+  if (!isSchemaMissingError(withRole.error)) {
+    throw withRole.error;
+  }
+
+  const fallback = await supabase
+    .from("household_members")
+    .select(
+      `
+      id,
+      household_id,
+      user_id,
+      joined_at,
+      profiles ( display_name, email )
+    `
+    )
+    .eq("household_id", householdId)
+    .order("joined_at");
+
+  if (fallback.error) throw fallback.error;
+  return (fallback.data ?? []).map((row) =>
+    mapMemberRow({ ...(row as MemberRow), role: "member" })
+  );
 }
 
 export async function fetchMyMembership(
@@ -86,9 +124,16 @@ export async function fetchMyMembership(
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (!error && data) {
+    return { role: normalizeRole(data.role) };
+  }
+
+  if (error && isSchemaMissingError(error)) {
+    return { role: "member" };
+  }
+
   if (error) throw error;
-  if (!data) return null;
-  return { role: data.role as HouseholdMemberRole };
+  return null;
 }
 
 export async function fetchHouseholdEvents(
@@ -106,14 +151,17 @@ export async function fetchHouseholdEvents(
       event_type,
       metadata,
       created_at,
-      profiles!household_events_actor_id_fkey ( display_name, email )
+      profiles ( display_name, email )
     `
     )
     .eq("household_id", householdId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) throw error;
+  if (error) {
+    if (isSchemaMissingError(error)) return [];
+    throw error;
+  }
 
   return (data ?? []).map((row) => {
     const actor = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
@@ -124,7 +172,7 @@ export async function fetchHouseholdEvents(
       event_type: row.event_type,
       metadata: row.metadata,
       created_at: row.created_at,
-      actor: actor as HouseholdEventWithActor["actor"],
+      actor: (actor ?? null) as HouseholdEventWithActor["actor"],
     };
   });
 }
