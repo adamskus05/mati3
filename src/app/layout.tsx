@@ -11,7 +11,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Mati – Inköpslistor",
+  title: "Mati",
   description: "Gemensamma inköpslistor för hushållet",
   applicationName: "Mati",
   appleWebApp: {
@@ -20,12 +20,19 @@ export const metadata: Metadata = {
     title: "Mati",
   },
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F2EB" },
-    { media: "(prefers-color-scheme: dark)", color: "#1A211C" },
+    { media: "(prefers-color-scheme: light)", color: "#9CB396" },
+    { media: "(prefers-color-scheme: dark)", color: "#6B8F66" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -40,9 +47,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="sv" suppressHydrationWarning>
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
       <body className={`${dmSans.variable} font-sans antialiased`}>
         <ThemeProvider>
           <QueryProvider>{children}</QueryProvider>

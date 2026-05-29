@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Mati – Inköpslistor",
+    name: "Mati",
     short_name: "Mati",
     description: "Gemensamma inköpslistor för hushållet",
     start_url: "/",
     display: "standalone",
-    background_color: "#F5F2EB",
-    theme_color: "#6B9B7A",
+    background_color: "#9CB396",
+    theme_color: "#9CB396",
     lang: "sv",
     orientation: "portrait-primary",
     icons: [
@@ -29,6 +29,12 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
+      },
+      {
+        src: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+        purpose: "any",
       },
     ],
   };
