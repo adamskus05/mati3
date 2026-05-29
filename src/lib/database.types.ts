@@ -54,19 +54,48 @@ export type Database = {
           id: string;
           household_id: string;
           user_id: string;
+          role: string;
           joined_at: string;
         };
         Insert: {
           id?: string;
           household_id: string;
           user_id: string;
+          role?: string;
           joined_at?: string;
         };
         Update: {
           id?: string;
           household_id?: string;
           user_id?: string;
+          role?: string;
           joined_at?: string;
+        };
+      };
+      household_events: {
+        Row: {
+          id: string;
+          household_id: string;
+          actor_id: string | null;
+          event_type: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          household_id: string;
+          actor_id?: string | null;
+          event_type: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          household_id?: string;
+          actor_id?: string | null;
+          event_type?: string;
+          metadata?: Json;
+          created_at?: string;
         };
       };
       categories: {
@@ -220,6 +249,26 @@ export type Database = {
         Args: { p_list_id: string };
         Returns: string;
       };
+      is_household_owner: {
+        Args: { p_household_id: string };
+        Returns: boolean;
+      };
+      renew_household_invite_code: {
+        Args: { p_household_id: string };
+        Returns: string;
+      };
+      transfer_household_ownership: {
+        Args: { p_household_id: string; p_new_owner_user_id: string };
+        Returns: undefined;
+      };
+      leave_household: {
+        Args: { p_household_id: string };
+        Returns: undefined;
+      };
+      remove_household_member: {
+        Args: { p_household_id: string; p_user_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -241,6 +290,15 @@ export type ShoppingListWithCreator = ShoppingList & {
   creator?: Pick<Profile, "display_name" | "email"> | null;
 };
 
+export type HouseholdMemberRole = "owner" | "member";
+
 export type MemberWithProfile = HouseholdMember & {
+  role: HouseholdMemberRole;
   profile: Pick<Profile, "display_name" | "email">;
+};
+
+export type HouseholdEvent = Database["public"]["Tables"]["household_events"]["Row"];
+
+export type HouseholdEventWithActor = HouseholdEvent & {
+  actor: Pick<Profile, "display_name" | "email"> | null;
 };

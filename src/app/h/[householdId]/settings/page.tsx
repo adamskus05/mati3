@@ -25,6 +25,7 @@ export default async function SettingsPage({
   return (
     <SettingsView
       householdId={householdId}
+      userId={user!.id}
       inviteCode={household.invite_code}
       profileName={profile?.display_name ?? ""}
     />

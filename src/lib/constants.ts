@@ -33,4 +33,12 @@ export const QUERY_KEYS = {
   items: (listId: string) => ["items", listId] as const,
   presets: (id: string) => ["presets", id] as const,
   profile: ["profile"] as const,
+  events: (id: string) => ["events", id] as const,
+  myMembership: (householdId: string, userId: string) =>
+    ["myMembership", householdId, userId] as const,
 };
+
+export const HOUSEHOLD_ROLES = {
+  owner: "Ägare",
+  member: "Medlem",
+} as const;

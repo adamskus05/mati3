@@ -53,6 +53,18 @@ export function useHouseholdRealtime(householdId: string) {
       .on(
         "postgres_changes",
         {
+          event: "INSERT",
+          schema: "public",
+          table: "household_events",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          debouncedInvalidate(queryClient, QUERY_KEYS.events(householdId));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
           event: "*",
           schema: "public",
           table: "item_presets",

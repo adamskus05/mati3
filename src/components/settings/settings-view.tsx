@@ -27,15 +27,18 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { HouseholdManagement } from "@/components/household/household-management";
 import { toast } from "sonner";
 
 export function SettingsView({
   householdId,
+  userId,
   inviteCode,
   profileName,
 }: {
   householdId: string;
+  userId: string;
   inviteCode: string;
   profileName: string;
 }) {
@@ -117,11 +120,6 @@ export function SettingsView({
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.presets(householdId) });
   }
 
-  function copyCode() {
-    navigator.clipboard.writeText(inviteCode);
-    toast.success("Kod kopierad");
-  }
-
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-xl font-semibold">Inställningar</h1>
@@ -149,19 +147,11 @@ export function SettingsView({
 
       <ThemePicker />
 
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-base">Hushållskod</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center gap-2">
-          <code className="flex-1 rounded-lg bg-muted px-3 py-2 font-mono text-lg tracking-widest">
-            {inviteCode}
-          </code>
-          <Button variant="outline" size="icon" onClick={copyCode}>
-            <Copy className="h-4 w-4" />
-          </Button>
-        </CardContent>
-      </Card>
+      <HouseholdManagement
+        householdId={householdId}
+        userId={userId}
+        inviteCode={inviteCode}
+      />
 
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between">
