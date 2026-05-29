@@ -36,13 +36,21 @@ export function ThemePicker() {
                 )}
               >
                 <div className="flex w-full gap-1">
-                  {t.preview.map((color) => (
-                    <span
-                      key={color}
-                      className="h-6 flex-1 rounded-md"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+                  <span
+                    className="h-7 flex-1 rounded-md ring-1 ring-border/50"
+                    style={{ backgroundColor: t.preview[1] }}
+                    title="Ljust läge"
+                  />
+                  <span
+                    className="h-7 w-8 shrink-0 rounded-md ring-1 ring-border/50"
+                    style={{ backgroundColor: t.preview[0] }}
+                    title="Accent"
+                  />
+                  <span
+                    className="h-7 flex-1 rounded-md ring-1 ring-border/50"
+                    style={{ backgroundColor: t.preview[2] }}
+                    title="Mörkt läge"
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t.name}</p>
