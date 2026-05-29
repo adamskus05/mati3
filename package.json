@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.generated.ts",
-    "icons:generate": "node scripts/generate-icons.mjs"
+    "icons:generate": "python3 scripts/generate-icons.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
