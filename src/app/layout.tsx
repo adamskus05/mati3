@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { MatiThemeApplier } from "@/components/theme/mati-theme-applier";
+import { ThemeColorSync } from "@/components/theme/theme-color-sync";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   applicationName: "Mati",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Mati",
   },
   manifest: "/manifest.webmanifest",
@@ -31,14 +32,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#9CB396" },
-    { media: "(prefers-color-scheme: dark)", color: "#6B8F66" },
-  ],
+  themeColor: "#F0F4EF",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -58,6 +57,7 @@ export default function RootLayout({
       <body className={`${dmSans.variable} font-sans antialiased`}>
         <ThemeProvider>
           <MatiThemeApplier />
+          <ThemeColorSync />
           <QueryProvider>{children}</QueryProvider>
           <Toaster richColors position="top-center" />
         </ThemeProvider>

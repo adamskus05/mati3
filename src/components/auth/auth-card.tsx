@@ -10,7 +10,7 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))]">
       <Card className="w-full max-w-md rounded-2xl border-border/60 shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="font-heading text-2xl">{title}</CardTitle>

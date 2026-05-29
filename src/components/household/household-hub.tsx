@@ -96,7 +96,7 @@ export function HouseholdHub() {
   const lastHousehold = households.find((h) => h.id === lastId);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background p-4">
+    <div className="flex min-h-dvh flex-col bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md space-y-6 pt-8">
         <div className="text-center">
           <h1 className="font-heading text-3xl font-bold text-primary">Mati</h1>
