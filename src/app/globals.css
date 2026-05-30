@@ -149,9 +149,9 @@
 
 :root {
   --mati-nav-bar-height: 3rem;
-  /* Set early via inline script; never use live env() here (iOS shrinks on scroll). */
-  --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
-  --mati-bottom-nav-total: calc(var(--mati-nav-bar-height) + var(--mati-safe-bottom));
+  --mati-tab-bar-inner-bottom: 6px;
+  --mati-safe-bottom: 0px;
+  --mati-bottom-nav-total: var(--mati-nav-bar-height);
   /* Compact touch scale — ~40px targets, readable type */
   --mati-touch: 2.5rem;
   --mati-text-input: 1rem;
@@ -175,16 +175,17 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Tab bar flush to bottom; safe inset is padding below icons (content-box = stable height) */
+/* Tab bar pinned to the physical bottom — no extra safe-area band underneath */
 .app-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 40;
-  box-sizing: content-box;
   height: var(--mati-nav-bar-height);
-  padding-bottom: var(--mati-safe-bottom);
+  min-height: var(--mati-nav-bar-height);
+  max-height: var(--mati-nav-bar-height);
+  box-sizing: border-box;
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
   contain: layout style;
@@ -193,11 +194,11 @@
 }
 
 .app-bottom-nav__bar {
-  height: var(--mati-nav-bar-height);
-  min-height: var(--mati-nav-bar-height);
-  max-height: var(--mati-nav-bar-height);
-  overflow: hidden;
+  height: 100%;
+  min-height: 0;
   box-sizing: border-box;
+  padding-bottom: var(--mati-tab-bar-inner-bottom);
+  overflow: hidden;
 }
 
 @media (max-width: 380px) {

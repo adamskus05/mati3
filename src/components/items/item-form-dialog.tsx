@@ -279,7 +279,7 @@ export function ItemFormDialog({
             </div>
           </div>
 
-          <div className="sticky bottom-0 border-t border-border/60 bg-background p-3 pb-[max(0.75rem,var(--mati-safe-bottom))]">
+          <div className="sticky bottom-0 border-t border-border/60 bg-background p-3 pb-3">
             <Button
               type="submit"
               className="h-[var(--mati-touch)] w-full rounded-xl"
