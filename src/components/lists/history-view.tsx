@@ -9,6 +9,7 @@ import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
 import { showQueryLoading } from "@/lib/query/loading";
+import { profileDisplayName } from "@/lib/profiles/display-name";
 
 export function HistoryView({ householdId }: { householdId: string }) {
   useHouseholdRealtime(householdId);
@@ -46,11 +47,26 @@ export function HistoryView({ householdId }: { householdId: string }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">{list.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Borttagen{" "}
+                        Arkiverad{" "}
                         {list.deleted_at
-                          ? new Date(list.deleted_at).toLocaleDateString("sv-SE")
+                          ? new Date(list.deleted_at).toLocaleDateString("sv-SE", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
                           : "—"}
+                        {list.deleted_by_profile && (
+                          <>
+                            {" · av "}
+                            {profileDisplayName(list.deleted_by_profile)}
+                          </>
+                        )}
                       </p>
+                      {list.creator && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Skapad av {profileDisplayName(list.creator)}
+                        </p>
+                      )}
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </CardContent>

@@ -11,7 +11,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import type { Category, ShoppingItem } from "@/lib/database.types";
+import type { Category, ShoppingItemWithCompleter } from "@/lib/database.types";
 import { ItemRow } from "@/components/items/item-row";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,6 +19,9 @@ export function CategorySection({
   category,
   items,
   readOnly,
+  selectMode,
+  selectedIds,
+  onSelectToggle,
   sensors,
   onToggle,
   onEdit,
@@ -26,11 +29,14 @@ export function CategorySection({
   onDragEnd,
 }: {
   category: Category | null;
-  items: ShoppingItem[];
+  items: ShoppingItemWithCompleter[];
   readOnly?: boolean;
+  selectMode?: boolean;
+  selectedIds: Set<string>;
+  onSelectToggle: (id: string) => void;
   sensors: SensorDescriptor<SensorOptions>[];
-  onToggle: (item: ShoppingItem) => void;
-  onEdit: (item: ShoppingItem) => void;
+  onToggle: (item: ShoppingItemWithCompleter) => void;
+  onEdit: (item: ShoppingItemWithCompleter) => void;
   onDelete: (id: string) => void;
   onDragEnd: (event: DragEndEvent) => void;
 }) {
@@ -65,6 +71,9 @@ export function CategorySection({
                 key={item.id}
                 item={item}
                 readOnly={readOnly}
+                selectMode={selectMode}
+                selected={selectedIds.has(item.id)}
+                onSelectToggle={() => onSelectToggle(item.id)}
                 onToggle={() => onToggle(item)}
                 onEdit={() => onEdit(item)}
                 onDelete={() => onDelete(item.id)}

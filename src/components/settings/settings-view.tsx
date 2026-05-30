@@ -27,19 +27,24 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { HouseholdManagement } from "@/components/household/household-management";
+import { PushNotificationSettings } from "@/components/settings/push-notification-settings";
+import { fetchUserHouseholds } from "@/lib/queries/households";
 import { toast } from "sonner";
 
 export function SettingsView({
   householdId,
   userId,
   inviteCode,
+  householdName,
   profileName,
 }: {
   householdId: string;
   userId: string;
   inviteCode: string;
+  householdName: string;
   profileName: string;
 }) {
   const online = useOnline();
@@ -52,6 +57,11 @@ export function SettingsView({
   const [presetCat, setPresetCat] = useState("none");
 
   useHouseholdRealtime(householdId);
+
+  const { data: allHouseholds = [] } = useQuery({
+    queryKey: QUERY_KEYS.households,
+    queryFn: () => fetchUserHouseholds(createClient()),
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: QUERY_KEYS.categories(householdId),
@@ -147,11 +157,39 @@ export function SettingsView({
 
       <ThemePicker />
 
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Dina hushåll</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {allHouseholds.map((h) => (
+            <Link
+              key={h.id}
+              href={`/h/${h.id}`}
+              className={`block rounded-lg border px-3 py-2 text-sm active:bg-muted ${
+                h.id === householdId ? "border-primary bg-primary/5 font-medium" : ""
+              }`}
+            >
+              {h.name}
+            </Link>
+          ))}
+          <Link
+            href="/"
+            className="mt-2 flex w-full items-center justify-center rounded-md border px-3 py-2 text-sm font-medium active:bg-muted"
+          >
+            Skapa eller gå med i hushåll
+          </Link>
+        </CardContent>
+      </Card>
+
       <HouseholdManagement
         householdId={householdId}
         userId={userId}
         inviteCode={inviteCode}
+        householdName={householdName}
       />
+
+      <PushNotificationSettings userId={userId} />
 
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between">

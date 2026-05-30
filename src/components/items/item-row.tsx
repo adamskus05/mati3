@@ -3,20 +3,27 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
-import type { ShoppingItem } from "@/lib/database.types";
+import type { ShoppingItemWithCompleter } from "@/lib/database.types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { profileDisplayName } from "@/lib/profiles/display-name";
 
 export function ItemRow({
   item,
   readOnly,
+  selectMode,
+  selected,
+  onSelectToggle,
   onToggle,
   onEdit,
   onDelete,
 }: {
-  item: ShoppingItem;
+  item: ShoppingItemWithCompleter;
   readOnly?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  onSelectToggle?: () => void;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -28,7 +35,7 @@ export function ItemRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, disabled: readOnly });
+  } = useSortable({ id: item.id, disabled: readOnly || selectMode });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -40,6 +47,11 @@ export function ItemRow({
       ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
       : item.unit ?? "";
 
+  const completedBy =
+    item.completed && item.completer
+      ? profileDisplayName(item.completer)
+      : null;
+
   return (
     <li
       ref={setNodeRef}
@@ -47,10 +59,18 @@ export function ItemRow({
       className={cn(
         "flex items-center gap-2 rounded-xl border border-transparent bg-card px-2 py-2.5",
         item.completed && "opacity-50",
-        isDragging && "z-10 shadow-lg border-border"
+        isDragging && "z-10 shadow-lg border-border",
+        selected && "border-primary/40 bg-primary/5"
       )}
     >
-      {!readOnly && (
+      {selectMode && !readOnly && (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={onSelectToggle}
+          aria-label={`Välj ${item.name}`}
+        />
+      )}
+      {!readOnly && !selectMode && (
         <button
           type="button"
           className="touch-none text-muted-foreground active:opacity-60"
@@ -63,13 +83,13 @@ export function ItemRow({
       <Checkbox
         checked={item.completed}
         onCheckedChange={onToggle}
-        disabled={readOnly}
+        disabled={readOnly || selectMode}
         className="rounded-full"
       />
       <button
         type="button"
         className="flex-1 min-w-0 text-left active:opacity-70"
-        onClick={onToggle}
+        onClick={selectMode ? onSelectToggle : onToggle}
         disabled={readOnly}
       >
         <span
@@ -88,8 +108,13 @@ export function ItemRow({
             {item.notes}
           </span>
         )}
+        {completedBy && (
+          <span className="block text-[10px] text-muted-foreground">
+            Av {completedBy}
+          </span>
+        )}
       </button>
-      {!readOnly && (
+      {!readOnly && !selectMode && (
         <div className="flex shrink-0">
           <Button variant="ghost" size="icon" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />

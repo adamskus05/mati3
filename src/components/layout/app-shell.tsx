@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/actions/auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { OfflineBanner } from "@/components/layout/offline-banner";
+import { HouseholdSwitcher } from "@/components/household/household-switcher";
 import { useLockedSafeArea } from "@/hooks/use-locked-safe-area";
 
 const navItems = (householdId: string) => [
@@ -39,13 +41,15 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
+      <OfflineBanner />
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-          <div>
-            <Link href={`/h/${householdId}`} className="font-heading text-lg font-semibold">
-              Mati
-            </Link>
-            <p className="text-xs text-muted-foreground">{householdName}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-primary">Mati</p>
+            <HouseholdSwitcher
+              currentHouseholdId={householdId}
+              currentName={householdName}
+            />
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />

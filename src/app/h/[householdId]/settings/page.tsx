@@ -27,6 +27,7 @@ export default async function SettingsPage({
       householdId={householdId}
       userId={user!.id}
       inviteCode={household.invite_code}
+      householdName={household.name}
       profileName={profile?.display_name ?? ""}
     />
   );

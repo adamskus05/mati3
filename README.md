@@ -30,6 +30,14 @@ npx supabase link --project-ref YOUR_REF
 npm run db:push
 ```
 
+Efter schemaändringar, uppdatera TypeScript-typer (kräver länkat projekt eller lokal Supabase):
+
+```bash
+npm run db:types
+```
+
+`database.types.generated.ts` skrivs om av CLI; app-specifika typer (`MemberWithProfile`, m.m.) ligger i `database.types.ts`.
+
 4. Under **Authentication → URL configuration**, lägg till:
    - Site URL: `http://localhost:3000`
    - Redirect URLs: `http://localhost:3000/auth/callback`
@@ -47,7 +55,20 @@ npm run dev
 
 1. Importera repot till Vercel.
 2. Lägg till `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-3. Uppdatera Supabase redirect URLs med din produktionsdomän.
+3. För push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` (samma secret som Supabase Database Webhook mot `/api/push/send`).
+4. Uppdatera Supabase redirect URLs med din produktionsdomän.
+
+### Tester (RLS)
+
+```bash
+supabase start
+export SUPABASE_URL=http://127.0.0.1:54321
+export SUPABASE_ANON_KEY=$(supabase status -o env | grep ANON_KEY | cut -d= -f2)
+export SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o env | grep SERVICE_ROLE_KEY | cut -d= -f2)
+npm test
+```
+
+Utan lokal Supabase hoppas RLS-testerna över.
 
 ## PWA på mobil
 

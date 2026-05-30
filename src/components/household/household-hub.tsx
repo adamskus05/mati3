@@ -30,7 +30,9 @@ export function HouseholdHub() {
   });
 
   useEffect(() => {
-    if (households.length === 1 && !isLoading) {
+    if (isLoading || households.length !== 1) return;
+    const last = localStorage.getItem(LAST_HOUSEHOLD_KEY);
+    if (!last) {
       localStorage.setItem(LAST_HOUSEHOLD_KEY, households[0].id);
       router.push(`/h/${households[0].id}`);
     }
@@ -76,7 +78,10 @@ export function HouseholdHub() {
     });
     setLoading(false);
     if (error) {
-      toast.error("Ogiltig hushållskod");
+      const msg = error.message.includes("För många försök")
+        ? error.message
+        : "Ogiltig hushållskod";
+      toast.error(msg);
       return;
     }
     toast.success("Du gick med i hushållet!");

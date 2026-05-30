@@ -17,16 +17,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Copy, LogOut, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export function HouseholdManagement({
   householdId,
   userId,
   inviteCode: initialInviteCode,
+  householdName: initialHouseholdName,
 }: {
   householdId: string;
   userId: string;
   inviteCode: string;
+  householdName: string;
 }) {
   const router = useRouter();
   const online = useOnline();
@@ -35,6 +39,7 @@ export function HouseholdManagement({
   const [renewOpen, setRenewOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [householdName, setHouseholdName] = useState(initialHouseholdName);
 
   const { data: membership } = useQuery({
     queryKey: QUERY_KEYS.myMembership(householdId, userId),
@@ -96,8 +101,49 @@ export function HouseholdManagement({
     router.refresh();
   }
 
+  async function saveHouseholdName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!online || !isOwner) return;
+    setBusy(true);
+    const { error } = await createClient().rpc("update_household_name", {
+      p_household_id: householdId,
+      p_name: householdName.trim(),
+    });
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Hushållsnamn uppdaterat");
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.household(householdId) });
+      router.refresh();
+    }
+  }
+
   return (
     <>
+      {isOwner && (
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="text-base">Hushållsnamn</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={saveHouseholdName} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="householdName">Namn</Label>
+                <Input
+                  id="householdName"
+                  value={householdName}
+                  onChange={(e) => setHouseholdName(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={busy}>
+                Spara namn
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="text-base">Hushållskod</CardTitle>

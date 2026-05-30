@@ -11,9 +11,9 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { QUERY_KEYS } from "@/lib/constants";
+import { QUERY_KEYS, LAST_CATEGORY_KEY } from "@/lib/constants";
 import {
   getNextSortOrder,
   getNextSortOrderFromItems,
@@ -22,28 +22,44 @@ import {
 import { showQueryLoading } from "@/lib/query/loading";
 import { useListItemsRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
-import type { Category, ShoppingItem, ItemPreset } from "@/lib/database.types";
+import { fetchListItems } from "@/lib/queries/items";
+import { fetchList } from "@/lib/queries/lists";
+import { registerUndo } from "@/lib/undo/undo-action";
+import { enqueueMutation } from "@/lib/offline/mutation-queue";
+import type { Category, ItemPreset, ShoppingItemWithCompleter } from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
+import { QuickAddBar } from "@/components/items/quick-add-bar";
+import { ListShopperBar } from "@/components/items/list-shopper-bar";
+import { ListFilters } from "@/components/items/list-filters";
+import { BulkActionsBar } from "@/components/items/bulk-actions-bar";
 import { toast } from "sonner";
+import { Search } from "lucide-react";
 
 export function ShoppingListDetail({
   householdId,
   listId,
+  userId,
   readOnly = false,
 }: {
   householdId: string;
   listId: string;
+  userId: string;
   readOnly?: boolean;
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
-  const [editItem, setEditItem] = useState<ShoppingItem | null>(null);
+  const [editItem, setEditItem] = useState<ShoppingItemWithCompleter | null>(null);
+  const [shopperBusy, setShopperBusy] = useState(false);
 
   useListItemsRealtime(listId);
 
@@ -52,16 +68,9 @@ export function ShoppingListDetail({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const { data: list } = useQuery({
+  const { data: list, refetch: refetchList } = useQuery({
     queryKey: QUERY_KEYS.list(listId),
-    queryFn: async () => {
-      const { data } = await createClient()
-        .from("shopping_lists")
-        .select("*")
-        .eq("id", listId)
-        .single();
-      return data;
-    },
+    queryFn: () => fetchList(createClient(), listId),
   });
 
   const { data: categories = [] } = useQuery({
@@ -78,13 +87,7 @@ export function ShoppingListDetail({
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.items(listId),
-    queryFn: async () => {
-      const { data } = await createClient()
-        .from("shopping_items")
-        .select("*")
-        .eq("shopping_list_id", listId);
-      return data ?? [];
-    },
+    queryFn: () => fetchListItems(createClient(), listId),
   });
 
   const { data: presets = [] } = useQuery({
@@ -101,14 +104,21 @@ export function ShoppingListDetail({
   });
 
   const filteredItems = useMemo(() => {
-    if (!search.trim()) return items;
-    const q = search.toLowerCase();
-    return items.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.notes?.toLowerCase().includes(q) ?? false)
-    );
-  }, [items, search]);
+    let result = items;
+    if (hideCompleted) result = result.filter((i) => !i.completed);
+    if (categoryFilter !== null) {
+      result = result.filter((i) => i.category_id === categoryFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          (i.notes?.toLowerCase().includes(q) ?? false)
+      );
+    }
+    return result;
+  }, [items, search, hideCompleted, categoryFilter]);
 
   const grouped = useMemo(
     () => groupItemsByCategory(filteredItems),
@@ -121,29 +131,65 @@ export function ShoppingListDetail({
     return ordered;
   }, [categories, grouped]);
 
-  function toggleComplete(item: ShoppingItem) {
-    if (!online || readOnly) {
-      if (!online) toast.error("Ingen anslutning");
-      return;
-    }
+  function getLastCategoryId(): string | null {
+    if (typeof window === "undefined") return null;
+    const v = localStorage.getItem(LAST_CATEGORY_KEY(householdId));
+    return v === "none" || !v ? null : v;
+  }
+
+  function setLastCategoryId(catId: string | null) {
+    localStorage.setItem(
+      LAST_CATEGORY_KEY(householdId),
+      catId ?? "none"
+    );
+  }
+
+  function toggleComplete(item: ShoppingItemWithCompleter) {
+    if (readOnly) return;
     const completed = !item.completed;
     const current =
-      queryClient.getQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId)) ?? items;
+      queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+        QUERY_KEYS.items(listId)
+      ) ?? items;
     const sort_order = getNextSortOrderFromItems(
       current,
       item.category_id,
       completed
     );
+    const completed_at = completed ? new Date().toISOString() : null;
+    const completed_by = completed ? userId : null;
 
-    const previous = queryClient.getQueryData<ShoppingItem[]>(
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
       QUERY_KEYS.items(listId)
     );
 
-    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
-      old?.map((i) =>
-        i.id === item.id ? { ...i, completed, sort_order } : i
-      )
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) =>
+        old?.map((i) =>
+          i.id === item.id
+            ? { ...i, completed, sort_order, completed_at, completed_by }
+            : i
+        )
     );
+
+    registerUndo({
+      label: completed ? "Vara avbockad" : "Vara återställd",
+      undo: () => queryClient.setQueryData(QUERY_KEYS.items(listId), previous),
+    });
+
+    if (!online) {
+      void enqueueMutation({
+        type: "toggle_item",
+        listId,
+        itemId: item.id,
+        completed,
+        sort_order,
+        completed_by,
+        completed_at,
+      });
+      return;
+    }
 
     void (async () => {
       const supabase = createClient();
@@ -155,22 +201,18 @@ export function ShoppingListDetail({
           item.category_id,
           completed
         );
-        if (finalOrder !== sort_order) {
-          queryClient.setQueryData<ShoppingItem[]>(
-            QUERY_KEYS.items(listId),
-            (old) =>
-              old?.map((i) =>
-                i.id === item.id ? { ...i, sort_order: finalOrder } : i
-              )
-          );
-        }
       } catch {
-        /* keep optimistic sort_order */
+        /* keep local */
       }
 
       const { error } = await supabase
         .from("shopping_items")
-        .update({ completed, sort_order: finalOrder })
+        .update({
+          completed,
+          sort_order: finalOrder,
+          completed_by,
+          completed_at,
+        })
         .eq("id", item.id);
 
       if (error) {
@@ -181,13 +223,28 @@ export function ShoppingListDetail({
   }
 
   function deleteItem(id: string) {
-    if (!online || readOnly) return;
-    const previous = queryClient.getQueryData<ShoppingItem[]>(
+    if (readOnly) return;
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
       QUERY_KEYS.items(listId)
     );
-    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
-      old?.filter((i) => i.id !== id)
+    const removed = previous?.find((i) => i.id === id);
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) => old?.filter((i) => i.id !== id)
     );
+
+    if (removed) {
+      registerUndo({
+        label: "Vara borttagen",
+        undo: () => queryClient.setQueryData(QUERY_KEYS.items(listId), previous),
+      });
+    }
+
+    if (!online) {
+      void enqueueMutation({ type: "delete_item", listId, itemId: id });
+      return;
+    }
+
     void createClient()
       .from("shopping_items")
       .delete()
@@ -200,12 +257,89 @@ export function ShoppingListDetail({
       });
   }
 
+  function quickAdd(name: string) {
+    if (readOnly) return;
+    const categoryId = getLastCategoryId();
+    const current =
+      queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+        QUERY_KEYS.items(listId)
+      ) ?? items;
+    const sort_order = getNextSortOrderFromItems(current, categoryId, false);
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const optimistic: ShoppingItemWithCompleter = {
+      id: tempId,
+      shopping_list_id: listId,
+      name,
+      quantity: null,
+      unit: null,
+      category_id: categoryId,
+      sort_order,
+      completed: false,
+      notes: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      completed_by: null,
+      completed_at: null,
+      completer: null,
+    };
+
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId)
+    );
+
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) => [...(old ?? []), optimistic]
+    );
+
+    registerUndo({
+      label: `${name} tillagd`,
+      undo: () => queryClient.setQueryData(QUERY_KEYS.items(listId), previous),
+    });
+
+    if (!online) {
+      void enqueueMutation({
+        type: "add_item",
+        listId,
+        payload: { name, category_id: categoryId, sort_order },
+      });
+      return;
+    }
+
+    void (async () => {
+      const { data, error } = await createClient()
+        .from("shopping_items")
+        .insert({
+          shopping_list_id: listId,
+          name,
+          category_id: categoryId,
+          sort_order,
+        })
+        .select(`*, completer:profiles!shopping_items_completed_by_fkey ( display_name, email )`)
+        .single();
+
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        return;
+      }
+
+      const completer = null;
+      queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+        QUERY_KEYS.items(listId),
+        (old) =>
+          old?.map((i) =>
+            i.id === tempId ? { ...data, completer } as ShoppingItemWithCompleter : i
+          )
+      );
+    })();
+  }
+
   async function handleDragEnd(
     event: DragEndEvent,
-    categoryId: string | null,
-    groupItems: ShoppingItem[]
+    groupItems: ShoppingItemWithCompleter[]
   ) {
-    if (readOnly || !online) return;
+    if (readOnly || !online || selectMode) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -217,15 +351,17 @@ export function ShoppingListDetail({
     const oldIndex = groupItems.findIndex((i) => i.id === active.id);
     const newIndex = groupItems.findIndex((i) => i.id === over.id);
     const reordered = arrayMove(groupItems, oldIndex, newIndex);
-    const previous = queryClient.getQueryData<ShoppingItem[]>(
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
       QUERY_KEYS.items(listId)
     );
     const orderMap = new Map(reordered.map((item, index) => [item.id, index]));
 
-    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
-      old?.map((i) =>
-        orderMap.has(i.id) ? { ...i, sort_order: orderMap.get(i.id)! } : i
-      )
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) =>
+        old?.map((i) =>
+          orderMap.has(i.id) ? { ...i, sort_order: orderMap.get(i.id)! } : i
+        )
     );
 
     const supabase = createClient();
@@ -244,65 +380,64 @@ export function ShoppingListDetail({
   }
 
   function addFromPreset(preset: ItemPreset) {
-    if (!online || readOnly) {
-      toast.error("Ingen anslutning");
+    if (readOnly) return;
+    if (preset.category_id) setLastCategoryId(preset.category_id);
+    quickAdd(preset.name);
+  }
+
+  async function bulkComplete() {
+    const ids = [...selectedIds];
+    for (const id of ids) {
+      const item = items.find((i) => i.id === id);
+      if (item && !item.completed) toggleComplete(item);
+    }
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  }
+
+  async function bulkDelete() {
+    for (const id of selectedIds) deleteItem(id);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  }
+
+  async function bulkMoveCategory(categoryId: string | null) {
+    if (!online) {
+      toast.error("Kräver anslutning");
       return;
     }
-    const current =
-      queryClient.getQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId)) ?? items;
-    const sort_order = getNextSortOrderFromItems(
-      current,
-      preset.category_id,
-      false
-    );
-    const tempId = `optimistic-${crypto.randomUUID()}`;
-    const optimistic: ShoppingItem = {
-      id: tempId,
-      shopping_list_id: listId,
-      name: preset.name,
-      quantity: preset.default_quantity,
-      unit: preset.default_unit,
-      category_id: preset.category_id,
-      sort_order,
-      completed: false,
-      notes: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    const ids = [...selectedIds];
+    const { error } = await createClient()
+      .from("shopping_items")
+      .update({ category_id: categoryId })
+      .in("id", ids);
+    if (error) toast.error(error.message);
+    else {
+      setLastCategoryId(categoryId);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    }
+  }
 
-    queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) => [
-      ...(old ?? []),
-      optimistic,
-    ]);
-    toast.success(`${preset.name} tillagd`);
+  async function startShopping() {
+    setShopperBusy(true);
+    const { error } = await createClient().rpc("set_list_shopper", {
+      p_list_id: listId,
+    });
+    setShopperBusy(false);
+    if (error) toast.error(error.message);
+    else void refetchList();
+  }
 
-    void (async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("shopping_items")
-        .insert({
-          shopping_list_id: listId,
-          name: preset.name,
-          quantity: preset.default_quantity,
-          unit: preset.default_unit,
-          category_id: preset.category_id,
-          sort_order,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        toast.error(error.message);
-        queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
-          old?.filter((i) => i.id !== tempId)
-        );
-        return;
-      }
-
-      queryClient.setQueryData<ShoppingItem[]>(QUERY_KEYS.items(listId), (old) =>
-        old?.map((i) => (i.id === tempId ? data : i))
-      );
-    })();
+  async function stopShopping() {
+    setShopperBusy(true);
+    const { error } = await createClient().rpc("clear_list_shopper", {
+      p_list_id: listId,
+    });
+    setShopperBusy(false);
+    if (error) toast.error(error.message);
+    else void refetchList();
   }
 
   if (showQueryLoading(isLoading, items)) {
@@ -310,7 +445,7 @@ export function ShoppingListDetail({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <div className="flex items-center gap-2">
         <Link
           href={readOnly ? `/h/${householdId}/history` : `/h/${householdId}`}
@@ -334,6 +469,18 @@ export function ShoppingListDetail({
         )}
       </div>
 
+      {!readOnly && (
+        <ListShopperBar
+          list={list}
+          userId={userId}
+          onStart={startShopping}
+          onStop={stopShopping}
+          busy={shopperBusy}
+        />
+      )}
+
+      {!readOnly && <QuickAddBar onAdd={quickAdd} disabled={readOnly} />}
+
       {!readOnly && presets.length > 0 && (
         <PresetChips presets={presets} onSelect={addFromPreset} />
       )}
@@ -348,10 +495,25 @@ export function ShoppingListDetail({
         />
       </div>
 
+      <ListFilters
+        hideCompleted={hideCompleted}
+        onHideCompletedChange={setHideCompleted}
+        categoryFilter={categoryFilter}
+        onCategoryFilterChange={setCategoryFilter}
+        categories={categories}
+        selectMode={selectMode}
+        onSelectModeChange={(v) => {
+          setSelectMode(v);
+          if (!v) setSelectedIds(new Set());
+        }}
+        readOnly={readOnly}
+      />
+
       {categoryOrder.map((category) => {
         const catId = category?.id ?? null;
+        if (categoryFilter !== null && catId !== categoryFilter) return null;
         const groupItems = grouped.get(catId) ?? [];
-        if (groupItems.length === 0 && search) return null;
+        if (groupItems.length === 0 && (search || hideCompleted)) return null;
 
         return (
           <CategorySection
@@ -359,19 +521,43 @@ export function ShoppingListDetail({
             category={category}
             items={groupItems}
             readOnly={readOnly}
+            selectMode={selectMode}
+            selectedIds={selectedIds}
+            onSelectToggle={(id) => {
+              setSelectedIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              });
+            }}
             sensors={sensors}
             onToggle={toggleComplete}
             onEdit={setEditItem}
             onDelete={deleteItem}
-            onDragEnd={(e) => handleDragEnd(e, catId, groupItems)}
+            onDragEnd={(e) => handleDragEnd(e, groupItems)}
           />
         );
       })}
 
       {filteredItems.length === 0 && (
         <p className="py-8 text-center text-muted-foreground">
-          {search ? "Inga träffar" : "Listan är tom"}
+          {search || hideCompleted ? "Inga träffar" : "Listan är tom"}
         </p>
+      )}
+
+      {selectMode && selectedIds.size > 0 && (
+        <BulkActionsBar
+          count={selectedIds.size}
+          categories={categories}
+          onComplete={bulkComplete}
+          onDelete={bulkDelete}
+          onMoveCategory={bulkMoveCategory}
+          onCancel={() => {
+            setSelectMode(false);
+            setSelectedIds(new Set());
+          }}
+        />
       )}
 
       {!readOnly && (

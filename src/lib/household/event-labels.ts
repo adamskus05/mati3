@@ -58,6 +58,14 @@ export function formatHouseholdEvent(
       return `${who} skapade listan${listName ? ` „${listName}"` : ""}`;
     case "list_archived":
       return `${who} arkiverade listan${listName ? ` „${listName}"` : ""}`;
+    case "shopping_started":
+      return `${who} började handla${listName ? ` („${listName}")` : ""}`;
+    case "shopping_ended":
+      return `${who} slutade handla${listName ? ` („${listName}")` : ""}`;
+    case "household_renamed": {
+      const newName = metaString(metadata, "new_name");
+      return `${who} bytte hushållsnamn${newName ? ` till „${newName}"` : ""}`;
+    }
     case "household_deleted":
       return `${who} tog bort hushållet`;
     default:

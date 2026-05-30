@@ -1,4 +1,11 @@
 export const LAST_HOUSEHOLD_KEY = "mati:lastHouseholdId";
+export const LAST_CATEGORY_KEY = (householdId: string) =>
+  `mati:lastCategory:${householdId}`;
+
+export type ListSortMode = "manual" | "updated" | "name";
+
+export const LIST_SORT_STORAGE_KEY = (householdId: string) =>
+  `mati:listSort:${householdId}`;
 
 export const UNITS = [
   "st",
