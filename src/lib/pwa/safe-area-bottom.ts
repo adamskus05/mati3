@@ -70,6 +70,29 @@ export function readAppliedSafeBottomPx(): number {
   return parseFloat(raw) || 0;
 }
 
+const APP_HEIGHT_VAR = "--mati-app-height";
+
+/** Visible viewport height (iOS PWA: 100dvh is often too tall until the first scroll). */
+export function applyVisualViewportHeight(): void {
+  if (typeof window === "undefined") return;
+  const h = Math.round(window.visualViewport?.height ?? window.innerHeight);
+  document.documentElement.style.setProperty(APP_HEIGHT_VAR, `${h}px`);
+}
+
+export function applyAppChromeMetrics(): number {
+  applyVisualViewportHeight();
+  return applySafeBottomLock(resolveSafeBottomPx());
+}
+
 export function safeAreaBottomBootScript(): string {
   return `(function(){try{var r=document.documentElement,s=window.matchMedia('(display-mode: standalone)').matches,k='${STORAGE_KEY}',n=null;try{var st=sessionStorage.getItem(k);if(st!=null){var p=parseInt(st,10);if(!isNaN(p)&&p>=${MIN_PX}&&p<=${MAX_PX})n=p}}catch(e){}if(n===null){var d=document.createElement('div');d.style.cssText='position:fixed;bottom:0;left:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none';r.appendChild(d);var px=parseFloat(getComputedStyle(d).paddingBottom)||0;r.removeChild(d);var m=Math.round(px);n=s?(m>=12&&m<=${MAX_PX}?m:${PWA_SAFE_BOTTOM_FALLBACK_PX}):0}r.style.setProperty('${CSS_VAR}',n+'px');try{sessionStorage.setItem(k,String(n))}catch(e){}}catch(e){}})();`;
+}
+
+/** Runs before React paint — correct shell height on first PWA frame. */
+export function visualViewportBootScript(): string {
+  return `(function(){try{var sync=function(){var h=Math.round((window.visualViewport&&window.visualViewport.height)||window.innerHeight);document.documentElement.style.setProperty('${APP_HEIGHT_VAR}',h+'px')};sync();if(window.visualViewport){window.visualViewport.addEventListener('resize',sync);window.visualViewport.addEventListener('scroll',sync)}window.addEventListener('resize',sync);window.addEventListener('orientationchange',sync)}catch(e){}})();`;
+}
+
+export function appChromeBootScript(): string {
+  return `${safeAreaBottomBootScript()}${visualViewportBootScript()}`;
 }

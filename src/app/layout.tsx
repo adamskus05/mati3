@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
-import { safeAreaBottomBootScript } from "@/lib/pwa/safe-area-bottom";
+import { appChromeBootScript } from "@/lib/pwa/safe-area-bottom";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { MatiThemeApplier } from "@/components/theme/mati-theme-applier";
@@ -52,7 +52,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='mati:colorTheme',v=localStorage.getItem(k),a=['sage','berry','ocean','sunset','forest','lavender'];document.documentElement.setAttribute('data-mati-theme',a.includes(v)?v:'sage')}catch(e){}})();${safeAreaBottomBootScript()}`,
+            __html: `(function(){try{var k='mati:colorTheme',v=localStorage.getItem(k),a=['sage','berry','ocean','sunset','forest','lavender'];document.documentElement.setAttribute('data-mati-theme',a.includes(v)?v:'sage')}catch(e){}})();${appChromeBootScript()}`,
           }}
         />
       </head>

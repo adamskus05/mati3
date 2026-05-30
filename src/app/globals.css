@@ -174,17 +174,17 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Full-viewport shell: only main scrolls; tab bar stays sticky at the bottom */
+/* Shell height = visible viewport (set in boot script + useLockedSafeArea; not raw dvh on iOS) */
 .app-shell {
-  height: 100svh;
-  max-height: 100svh;
+  height: var(--mati-app-height, 100svh);
+  max-height: var(--mati-app-height, 100svh);
   overflow: hidden;
 }
 
 @supports (height: 100dvh) {
   .app-shell {
-    height: 100dvh;
-    max-height: 100dvh;
+    height: var(--mati-app-height, 100dvh);
+    max-height: var(--mati-app-height, 100dvh);
   }
 }
 
