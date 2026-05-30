@@ -149,11 +149,8 @@
 
 :root {
   --mati-nav-bar-height: 3.5rem;
-  --mati-viewport-bottom-gap: 0px;
-  --mati-safe-bottom: var(
-    --mati-safe-bottom-locked,
-    env(safe-area-inset-bottom, 0px)
-  );
+  /* Set early via inline script; never use live env() here (iOS shrinks on scroll). */
+  --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
   --mati-bottom-nav-total: calc(var(--mati-nav-bar-height) + var(--mati-safe-bottom));
 }
 
@@ -168,10 +165,9 @@
   flex-direction: column;
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
-  padding-bottom: 0;
+  padding-bottom: var(--mati-safe-bottom);
   contain: layout style;
-  transform: translate3d(0, var(--mati-viewport-bottom-gap), 0);
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .app-bottom-nav__bar {
@@ -179,14 +175,6 @@
   min-height: var(--mati-nav-bar-height);
   max-height: var(--mati-nav-bar-height);
   flex-shrink: 0;
-}
-
-.app-bottom-nav__safe {
-  height: var(--mati-safe-bottom);
-  min-height: var(--mati-safe-bottom);
-  max-height: var(--mati-safe-bottom);
-  flex-shrink: 0;
-  pointer-events: none;
 }
 
 .app-main-with-bottom-nav {

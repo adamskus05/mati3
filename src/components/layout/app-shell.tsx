@@ -100,7 +100,6 @@ export function AppShell({
             );
           })}
         </div>
-        <div className="app-bottom-nav__safe" aria-hidden />
       </nav>
     </div>
   );
