@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { useMatiTheme } from "@/hooks/use-mati-theme";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,11 @@ import { Label } from "@/components/ui/label";
 export function ThemePicker() {
   const { themeId, setThemeId, themes } = useMatiTheme();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const colorMode = mounted ? theme : undefined;
 
   return (
     <Card className="rounded-2xl">
@@ -80,7 +86,7 @@ export function ThemePicker() {
                 onClick={() => setTheme(mode.id)}
                 className={cn(
                   "rounded-xl border-2 py-2.5 text-sm font-medium transition-all",
-                  theme === mode.id
+                  colorMode === mode.id
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-transparent bg-muted/50"
                 )}

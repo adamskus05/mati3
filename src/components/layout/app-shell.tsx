@@ -69,7 +69,7 @@ export function AppShell({
   }, [householdId, router, queryClient]);
 
   return (
-    <div className="flex min-h-svh flex-col bg-background supports-[min-height:100dvh]:min-h-dvh">
+    <div className="app-shell flex flex-col bg-background">
       <OfflineBanner />
       <header className="sticky top-0 z-40 shrink-0 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between mati-page-x py-3">

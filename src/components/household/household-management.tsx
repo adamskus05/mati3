@@ -44,6 +44,7 @@ export function HouseholdManagement({
   const { data: membership } = useQuery({
     queryKey: QUERY_KEYS.myMembership(householdId, userId),
     queryFn: () => fetchMyMembership(createClient(), householdId, userId),
+    throwOnError: false,
   });
 
   const isOwner = membership?.role === "owner";

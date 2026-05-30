@@ -15,13 +15,29 @@ import { toast } from "sonner";
 const PREF_KEY = "mati:pushEnabled";
 
 export function PushNotificationSettings({ userId }: { userId: string }) {
-  const supported = isPushSupported();
+  const [mounted, setMounted] = useState(false);
+  const [supported, setSupported] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setSupported(isPushSupported());
     setEnabled(localStorage.getItem(PREF_KEY) === "1");
   }, [userId]);
+
+  if (!mounted) {
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Notiser</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Laddar…</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   async function enable() {
     setBusy(true);

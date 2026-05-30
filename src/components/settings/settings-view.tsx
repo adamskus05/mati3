@@ -26,6 +26,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
@@ -61,6 +62,7 @@ export function SettingsView({
   const { data: allHouseholds = [] } = useQuery({
     queryKey: QUERY_KEYS.households,
     queryFn: () => fetchUserHouseholds(createClient()),
+    throwOnError: false,
   });
 
   const { data: categories = [] } = useQuery({
@@ -73,6 +75,7 @@ export function SettingsView({
         .order("sort_order");
       return data ?? [];
     },
+    throwOnError: false,
   });
 
   const { data: presets = [] } = useQuery({
@@ -85,6 +88,7 @@ export function SettingsView({
         .order("sort_order");
       return data ?? [];
     },
+    throwOnError: false,
   });
 
   async function saveProfile(e: React.FormEvent) {
@@ -228,7 +232,7 @@ export function SettingsView({
                       onValueChange={(v) => v && setPresetUnit(v)}
                     >
                       <SelectTrigger className="w-full">
-                        <span className="text-sm">{presetUnit}</span>
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {UNITS.map((u) => (

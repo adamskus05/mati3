@@ -174,15 +174,30 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Tab bar in document flow (not fixed) — same position on every tab regardless of content height */
+/* Full-viewport shell: only main scrolls; tab bar stays sticky at the bottom */
+.app-shell {
+  height: 100svh;
+  max-height: 100svh;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .app-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+}
+
+/* Tab bar sticky at viewport bottom — same on every tab regardless of content height */
 .app-bottom-nav {
+  position: sticky;
+  bottom: 0;
   z-index: 40;
   flex-shrink: 0;
   box-sizing: border-box;
   padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
-  contain: layout style;
   overflow: hidden;
 }
 
