@@ -96,7 +96,7 @@ export function AppShell({
       </main>
 
       <nav className="app-bottom-nav" aria-label="Huvudnavigering">
-        <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">
+        <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-end justify-around px-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active =
               pendingHref === href ||
@@ -115,16 +115,12 @@ export function AppShell({
                 aria-label={label}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 rounded-lg pb-0.5 text-[11px] leading-none active:opacity-70",
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground"
+                  "flex h-full min-w-0 flex-1 items-end justify-center rounded-lg pb-0 active:opacity-70",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                <span className="app-bottom-nav__label max-w-full truncate px-0.5">
-                  {label}
-                </span>
+                <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" aria-hidden />
+                <span className="sr-only">{label}</span>
               </Link>
             );
           })}

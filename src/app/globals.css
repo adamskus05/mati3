@@ -148,7 +148,7 @@
 }
 
 :root {
-  --mati-nav-bar-height: 2.75rem;
+  --mati-nav-bar-height: 2.5rem;
   --mati-safe-bottom: 0px;
   --mati-bottom-nav-total: var(--mati-nav-bar-height);
   /* Compact touch scale — ~40px targets, readable type */
@@ -198,20 +198,6 @@
   box-sizing: border-box;
   align-items: flex-end;
   overflow: hidden;
-}
-
-@media (max-width: 380px) {
-  .app-bottom-nav__label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
 }
 
 .app-main-with-bottom-nav {
