@@ -32,7 +32,6 @@ import { Input } from "@/components/ui/input";
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
-import { QuickAddBar } from "@/components/items/quick-add-bar";
 import { ListShopperBar } from "@/components/items/list-shopper-bar";
 import { ListFilters } from "@/components/items/list-filters";
 import { BulkActionsBar } from "@/components/items/bulk-actions-bar";
@@ -479,35 +478,35 @@ export function ShoppingListDetail({
         />
       )}
 
-      {!readOnly && <QuickAddBar onAdd={quickAdd} disabled={readOnly} />}
-
       {!readOnly && presets.length > 0 && (
         <PresetChips presets={presets} onSelect={addFromPreset} />
       )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Sök varor…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="rounded-xl pl-9"
-        />
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Sök varor…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 rounded-xl pl-9"
+          />
+        </div>
+        {!readOnly && (
+          <ListFilters
+            hideCompleted={hideCompleted}
+            onHideCompletedChange={setHideCompleted}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
+            categories={categories}
+            selectMode={selectMode}
+            onSelectModeChange={(v) => {
+              setSelectMode(v);
+              if (!v) setSelectedIds(new Set());
+            }}
+          />
+        )}
       </div>
-
-      <ListFilters
-        hideCompleted={hideCompleted}
-        onHideCompletedChange={setHideCompleted}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
-        categories={categories}
-        selectMode={selectMode}
-        onSelectModeChange={(v) => {
-          setSelectMode(v);
-          if (!v) setSelectedIds(new Set());
-        }}
-        readOnly={readOnly}
-      />
 
       {categoryOrder.map((category) => {
         const catId = category?.id ?? null;

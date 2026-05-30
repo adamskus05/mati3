@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { showQueryLoading } from "@/lib/query/loading";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 import type { ShoppingListWithCreator } from "@/lib/database.types";
+import { ListSortMenu } from "@/components/lists/list-sort-menu";
 import { cn } from "@/lib/utils";
 
 function SortableListRow({
@@ -303,29 +304,7 @@ export function ListsView({ householdId }: { householdId: string }) {
         </Dialog>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {(
-          [
-            ["manual", "Egen ordning"],
-            ["updated", "Senast ändrad"],
-            ["name", "Namn A–Ö"],
-          ] as const
-        ).map(([mode, label]) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => changeSortMode(mode)}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-xs",
-              sortMode === mode
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground"
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <ListSortMenu sortMode={sortMode} onSortModeChange={changeSortMode} />
 
       {lists.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
