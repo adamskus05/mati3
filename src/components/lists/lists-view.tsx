@@ -48,6 +48,7 @@ import { profileDisplayName } from "@/lib/profiles/display-name";
 import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { ListSortMenu } from "@/components/lists/list-sort-menu";
 import { cn } from "@/lib/utils";
+import { prefetchListDetail } from "@/lib/query/prefetch-list-detail";
 
 function SortableListRow({
   list,
@@ -55,12 +56,14 @@ function SortableListRow({
   onEdit,
   onDelete,
   dragEnabled,
+  onWarm,
 }: {
   list: ShoppingListWithCreator;
   householdId: string;
   onEdit: () => void;
   onDelete: () => void;
   dragEnabled: boolean;
+  onWarm: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: list.id, disabled: !dragEnabled });
@@ -87,6 +90,8 @@ function SortableListRow({
           <Link
             href={`/h/${householdId}/lists/${list.id}`}
             prefetch
+            onPointerEnter={onWarm}
+            onTouchStart={onWarm}
             className="flex flex-1 items-center gap-3 p-4 transition-colors hover:bg-muted/50 active:bg-muted"
           >
             <div className="flex-1 min-w-0">
@@ -159,6 +164,16 @@ export function ListsView({ householdId }: { householdId: string }) {
     }
     return copy;
   }, [lists, sortMode]);
+
+  function warmList(listId: string) {
+    prefetchListDetail(queryClient, householdId, listId);
+  }
+
+  useEffect(() => {
+    for (const list of sortedLists.slice(0, 4)) {
+      warmList(list.id);
+    }
+  }, [householdId, sortedLists, queryClient]);
 
   function changeSortMode(mode: ListSortMode) {
     setSortMode(mode);
@@ -334,6 +349,7 @@ export function ListsView({ householdId }: { householdId: string }) {
                     setEditName(list.name);
                   }}
                   onDelete={() => deleteList(list.id)}
+                  onWarm={() => warmList(list.id)}
                 />
               ))}
             </ul>

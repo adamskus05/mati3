@@ -17,6 +17,7 @@ export function CategoryPicker({
   onChange,
   label = "Kategori",
   variant = "sheet",
+  layout = "wrap",
 }: {
   categories: Category[];
   value: string;
@@ -24,6 +25,7 @@ export function CategoryPicker({
   label?: string;
   /** inline: tap category chips directly; sheet: open bottom sheet (settings etc.) */
   variant?: "sheet" | "inline";
+  layout?: "wrap" | "grid";
 }) {
   const [open, setOpen] = useState(false);
   const selected =
@@ -37,8 +39,13 @@ export function CategoryPicker({
   if (variant === "inline") {
     return (
       <div className="space-y-2">
-        <p className="text-sm font-medium">{label}</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <div
+          className={cn(
+            "gap-2",
+            layout === "grid" ? "grid grid-cols-2" : "flex flex-wrap"
+          )}
+        >
           <InlineCategoryChip
             name="Okategoriserad"
             color="#9CA3AF"
@@ -138,18 +145,19 @@ function InlineCategoryChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-medium active:scale-[0.98]",
+        "flex min-h-[44px] items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left text-sm font-medium active:scale-[0.98]",
         selected
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-transparent bg-muted text-foreground"
+          ? "border-primary bg-primary/10 text-primary shadow-sm"
+          : "border-border/50 bg-card text-foreground"
       )}
     >
       <span
-        className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-background"
+        className="h-3 w-3 shrink-0 rounded-full ring-2 ring-background"
         style={{ backgroundColor: color }}
         aria-hidden
       />
-      {name}
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
     </button>
   );
 }

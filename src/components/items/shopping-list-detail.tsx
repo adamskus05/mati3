@@ -18,8 +18,8 @@ import {
   getNextSortOrderFromItems,
   groupItemsByCategory,
 } from "@/lib/items/sort-order";
-import { showQueryLoading } from "@/lib/query/loading";
 import { useListItemsRealtime } from "@/hooks/use-realtime";
+import { ListItemsSkeleton } from "@/components/items/list-items-skeleton";
 import { useOnline } from "@/hooks/use-online";
 import { fetchListItems } from "@/lib/queries/items";
 import { fetchList } from "@/lib/queries/lists";
@@ -45,11 +45,17 @@ export function ShoppingListDetail({
   listId,
   userId,
   readOnly = false,
+  initialList,
+  initialItems,
+  initialCategories,
 }: {
   householdId: string;
   listId: string;
   userId: string;
   readOnly?: boolean;
+  initialList?: ShoppingListWithCreator;
+  initialItems?: ShoppingItemWithCompleter[];
+  initialCategories?: Category[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -70,9 +76,18 @@ export function ShoppingListDetail({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const listFromCache = useMemo(() => {
+    const lists = queryClient.getQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId)
+    );
+    return lists?.find((l) => l.id === listId);
+  }, [queryClient, householdId, listId]);
+
   const { data: list } = useQuery({
     queryKey: QUERY_KEYS.list(listId),
     queryFn: () => fetchList(createClient(), listId),
+    initialData: initialList ?? listFromCache,
+    staleTime: 60_000,
   });
 
   const { data: categories = [] } = useQuery({
@@ -85,11 +100,15 @@ export function ShoppingListDetail({
         .order("sort_order");
       return data ?? [];
     },
+    initialData: initialCategories,
+    staleTime: 60_000,
   });
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.items(listId),
     queryFn: () => fetchListItems(createClient(), listId),
+    initialData: initialItems,
+    staleTime: 30_000,
   });
 
   const { data: presets = [] } = useQuery({
@@ -457,9 +476,7 @@ export function ShoppingListDetail({
       });
   }
 
-  if (showQueryLoading(isLoading, items)) {
-    return <p className="text-muted-foreground">Laddar…</p>;
-  }
+  const itemsPending = isLoading && items.length === 0;
 
   return (
     <div className="space-y-4 pb-4">
@@ -520,7 +537,10 @@ export function ShoppingListDetail({
         </div>
       )}
 
-      {categoryOrder.map((category) => {
+      {itemsPending ? (
+        <ListItemsSkeleton />
+      ) : (
+        categoryOrder.map((category) => {
         const catId = category?.id ?? null;
         if (categoryFilter !== null && catId !== categoryFilter) return null;
         const groupItems = grouped.get(catId) ?? [];
@@ -549,9 +569,10 @@ export function ShoppingListDetail({
             onDragEnd={(e) => handleDragEnd(e, groupItems)}
           />
         );
-      })}
+      })
+      )}
 
-      {filteredItems.length === 0 && (
+      {!itemsPending && filteredItems.length === 0 && (
         <p className="py-8 text-center text-muted-foreground">
           {search || hideCompleted ? "Inga träffar" : "Listan är tom"}
         </p>
