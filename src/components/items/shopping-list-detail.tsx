@@ -45,10 +45,14 @@ const ItemFormDialog = dynamic(
 );
 import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
-import { ListShopperBar } from "@/components/items/list-shopper-bar";
+import {
+  isShopperActive,
+  ListShopperBar,
+} from "@/components/items/list-shopper-bar";
 import { ListFilters } from "@/components/items/list-filters";
 import { BulkActionsBar } from "@/components/items/bulk-actions-bar";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function ShoppingListDetail({
   householdId,
@@ -498,116 +502,162 @@ export function ShoppingListDetail({
   const itemsPending = isLoading && items.length === 0;
 
   return (
-    <div className="space-y-4 pb-4">
-      <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        "flex flex-col",
+        readOnly ? "gap-3 pb-4" : "-mx-4 min-h-[calc(100dvh-8rem)] pb-0"
+      )}
+    >
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2",
+          !readOnly && "border-b border-border/40 px-4 pb-2"
+        )}
+      >
         <Link
           href={readOnly ? `/h/${householdId}/history` : `/h/${householdId}`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted active:scale-95 active:bg-muted"
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center rounded-md hover:bg-muted active:scale-95 active:bg-muted",
+            readOnly ? "h-8 w-8" : "h-9 w-9"
+          )}
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className={readOnly ? "h-4 w-4" : "h-5 w-5"} />
         </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="truncate font-heading text-[length:var(--mati-text-title)] font-semibold">
+        <div className="min-w-0 flex-1">
+          <h1
+            className={cn(
+              "truncate font-heading font-semibold leading-tight",
+              readOnly ? "text-lg" : "text-[length:var(--mati-text-title)]"
+            )}
+          >
             {list?.name ?? "Lista"}
           </h1>
           {readOnly && (
-            <p className="text-xs text-muted-foreground">Arkiverad – endast läsning</p>
+            <p className="text-[11px] text-muted-foreground">
+              Arkiverad – endast läsning
+            </p>
           )}
         </div>
+        {!readOnly && (
+          <div className="flex shrink-0 items-center gap-1">
+            {!isShopperActive(list) && (
+              <ListShopperBar
+                list={list}
+                userId={userId}
+                onStart={startShopping}
+                onStop={stopShopping}
+              />
+            )}
+            <ListFilters
+              search={search}
+              onSearchChange={setSearch}
+              hideCompleted={hideCompleted}
+              onHideCompletedChange={setHideCompleted}
+              categoryFilter={categoryFilter}
+              onCategoryFilterChange={setCategoryFilter}
+              categories={categories}
+              selectMode={selectMode}
+              onSelectModeChange={(v) => {
+                setSelectMode(v);
+                if (!v) setSelectedIds(new Set());
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {!readOnly && isShopperActive(list) && (
+        <div className="shrink-0 border-b border-border/40 px-4 py-1.5">
+          <ListShopperBar
+            list={list}
+            userId={userId}
+            onStart={startShopping}
+            onStop={stopShopping}
+          />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "min-h-0 flex-1",
+          !readOnly && "overflow-y-auto px-4 pt-2"
+        )}
+      >
+        {itemsPending ? (
+          <ListItemsSkeleton compact={readOnly} />
+        ) : (
+          <div className={readOnly ? "space-y-2" : "space-y-3 pb-4"}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              {categoryOrder.map((category) => {
+                const catId = category?.id ?? null;
+                if (categoryFilter !== null && catId !== categoryFilter) return null;
+                const groupItems = grouped.get(catId) ?? [];
+                if (groupItems.length === 0 && (search || hideCompleted)) return null;
+
+                return (
+                  <CategorySection
+                    key={catId ?? "uncategorized"}
+                    category={category}
+                    items={groupItems}
+                    readOnly={readOnly}
+                    selectMode={selectMode}
+                    selectedIds={selectedIds}
+                    onSelectToggle={(id) => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(id)) next.delete(id);
+                        else next.add(id);
+                        return next;
+                      });
+                    }}
+                    onToggle={toggleComplete}
+                    onEdit={setEditItem}
+                    onDelete={deleteItem}
+                  />
+                );
+              })}
+            </DndContext>
+          </div>
+        )}
+
+        {!itemsPending && filteredItems.length === 0 && (
+          <p
+            className={cn(
+              "text-center text-muted-foreground",
+              readOnly ? "py-4 text-sm" : "py-12 text-sm"
+            )}
+          >
+            {search || hideCompleted ? "Inga träffar" : "Listan är tom"}
+          </p>
+        )}
       </div>
 
       {!readOnly && (
-        <ListShopperBar
-          list={list}
-          userId={userId}
-          onStart={startShopping}
-          onStop={stopShopping}
-        />
-      )}
-
-      {!readOnly && presets.length > 0 && (
-        <PresetChips presets={presets} onSelect={addFromPreset} />
-      )}
-
-      {!readOnly && (
-        <div className="sticky top-0 z-10 -mx-4 space-y-2 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-border/50 bg-background/95 px-4 py-2 backdrop-blur-sm">
+          {presets.length > 0 && (
+            <div className="mb-2">
+              <PresetChips presets={presets} onSelect={addFromPreset} />
+            </div>
+          )}
           <ListAddBar
             onQuickAdd={quickAdd}
             onOpenForm={(prefill) => openAddForm(prefill ?? "")}
-            disabled={readOnly}
           />
-          <CategoryPicker
-            variant="scroll"
-            label="Kategori"
-            categories={categories}
-            value={addCategoryId}
-            onChange={pickAddCategory}
-          />
+          <div className="mt-2">
+            <CategoryPicker
+              variant="scroll"
+              dense
+              label="Kategori"
+              categories={categories}
+              value={addCategoryId}
+              onChange={pickAddCategory}
+            />
+          </div>
         </div>
-      )}
-
-      {!readOnly && (
-        <div className="flex justify-end gap-2">
-          <ListFilters
-            search={search}
-            onSearchChange={setSearch}
-            hideCompleted={hideCompleted}
-            onHideCompletedChange={setHideCompleted}
-            categoryFilter={categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
-            categories={categories}
-            selectMode={selectMode}
-            onSelectModeChange={(v) => {
-              setSelectMode(v);
-              if (!v) setSelectedIds(new Set());
-            }}
-          />
-        </div>
-      )}
-
-      {itemsPending ? (
-        <ListItemsSkeleton />
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          {categoryOrder.map((category) => {
-            const catId = category?.id ?? null;
-            if (categoryFilter !== null && catId !== categoryFilter) return null;
-            const groupItems = grouped.get(catId) ?? [];
-            if (groupItems.length === 0 && (search || hideCompleted)) return null;
-
-            return (
-              <CategorySection
-                key={catId ?? "uncategorized"}
-                category={category}
-                items={groupItems}
-                readOnly={readOnly}
-                selectMode={selectMode}
-                selectedIds={selectedIds}
-                onSelectToggle={(id) => {
-                  setSelectedIds((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(id)) next.delete(id);
-                    else next.add(id);
-                    return next;
-                  });
-                }}
-                onToggle={toggleComplete}
-                onEdit={setEditItem}
-                onDelete={deleteItem}
-              />
-            );
-          })}
-        </DndContext>
-      )}
-
-      {!itemsPending && filteredItems.length === 0 && (
-        <p className="py-8 text-center text-muted-foreground">
-          {search || hideCompleted ? "Inga träffar" : "Listan är tom"}
-        </p>
       )}
 
       {selectMode && selectedIds.size > 0 && (

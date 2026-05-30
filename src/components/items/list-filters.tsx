@@ -60,7 +60,7 @@ export function ListFilters({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           className={cn(
-            "relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-background active:bg-muted",
+            "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background active:bg-muted",
             activeFilterCount > 0 && "border-primary/50"
           )}
           aria-label="Filtrera varor"
@@ -152,7 +152,7 @@ export function ListFilters({
         type="button"
         variant={selectMode ? "default" : "outline"}
         size="icon"
-        className="h-10 w-10 shrink-0 rounded-xl"
+        className="h-9 w-9 shrink-0 rounded-lg"
         aria-label={selectMode ? "Avsluta val-läge" : "Välj flera varor"}
         aria-pressed={selectMode}
         onClick={() => onSelectModeChange(!selectMode)}

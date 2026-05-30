@@ -58,7 +58,8 @@ function ItemRowInner({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex min-h-[var(--mati-touch)] items-center gap-2 rounded-xl border border-transparent bg-card px-2 py-2",
+        "flex items-center gap-2 rounded-xl border border-transparent bg-card px-2",
+        readOnly ? "min-h-10 py-1.5" : "min-h-[var(--mati-touch)] py-2",
         item.completed && "opacity-50",
         isDragging && "z-10 border-border shadow-lg",
         selected && "border-primary/40 bg-primary/5"
@@ -95,7 +96,8 @@ function ItemRowInner({
       >
         <span
           className={cn(
-            "block text-[length:var(--mati-text-body)] font-medium leading-tight",
+            "block font-medium leading-tight",
+            readOnly ? "text-sm" : "text-[length:var(--mati-text-body)]",
             item.completed && "text-muted-foreground line-through"
           )}
         >

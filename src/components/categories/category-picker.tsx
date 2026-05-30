@@ -18,6 +18,7 @@ export function CategoryPicker({
   label = "Kategori",
   variant = "sheet",
   layout = "wrap",
+  dense = false,
 }: {
   categories: Category[];
   value: string;
@@ -25,6 +26,8 @@ export function CategoryPicker({
   label?: string;
   variant?: "sheet" | "inline" | "scroll";
   layout?: "wrap" | "grid";
+  /** Compact chips for list footer (h-8). */
+  dense?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selected =
@@ -37,13 +40,16 @@ export function CategoryPicker({
 
   if (variant === "scroll" || variant === "inline") {
     const isScroll = variant === "scroll";
+    const denseChips = dense ?? isScroll;
     return (
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className={denseChips ? "space-y-0" : "space-y-1.5"}>
+        {!denseChips && (
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        )}
         <div
           className={cn(
             isScroll
-              ? "flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-webkit-overflow-scrolling:touch]"
+              ? "flex gap-1.5 overflow-x-auto pb-0.5 snap-x snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
               : cn(
                   "gap-2",
                   layout === "grid" ? "grid grid-cols-2" : "flex flex-wrap"
@@ -56,6 +62,7 @@ export function CategoryPicker({
             selected={value === "none"}
             onClick={() => onChange("none")}
             compact={isScroll}
+            dense={denseChips}
           />
           {categories.map((c) => (
             <InlineCategoryChip
@@ -65,6 +72,7 @@ export function CategoryPicker({
               selected={value === c.id}
               onClick={() => onChange(c.id)}
               compact={isScroll}
+              dense={denseChips}
             />
           ))}
         </div>
@@ -141,36 +149,43 @@ function InlineCategoryChip({
   selected,
   onClick,
   compact = false,
+  dense = false,
 }: {
   name: string;
   color: string;
   selected: boolean;
   onClick: () => void;
   compact?: boolean;
+  dense?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 rounded-xl border-2 font-medium active:scale-[0.98]",
-        compact
-          ? "h-[var(--mati-touch)] shrink-0 snap-start px-3 text-sm"
-          : "min-h-[var(--mati-touch)] px-3 py-2 text-left text-sm",
+        "flex shrink-0 snap-start items-center gap-1.5 rounded-full border font-medium active:scale-[0.98]",
+        dense
+          ? "h-8 px-2.5 text-xs"
+          : compact
+            ? "h-[var(--mati-touch)] px-3 text-sm"
+            : "min-h-[var(--mati-touch)] px-3 py-2 text-left text-sm",
         selected
-          ? "border-primary bg-primary/10 text-primary shadow-sm"
-          : "border-border/50 bg-card text-foreground"
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border/50 bg-muted/40 text-foreground"
       )}
     >
       <span
-        className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-background"
+        className={cn(
+          "shrink-0 rounded-full",
+          dense ? "h-2 w-2" : "h-2.5 w-2.5 ring-2 ring-background"
+        )}
         style={{ backgroundColor: color }}
         aria-hidden
       />
-      <span className={cn("truncate", compact ? "max-w-[8rem]" : "min-w-0 flex-1")}>
+      <span className={cn("truncate", dense ? "max-w-[6rem]" : compact ? "max-w-[8rem]" : "")}>
         {name}
       </span>
-      {selected && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+      {selected && !dense && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
     </button>
   );
 }

@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { Category, ShoppingItemWithCompleter } from "@/lib/database.types";
 import { ItemRow } from "@/components/items/item-row";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export function CategorySection({
   category,
@@ -32,15 +33,30 @@ export function CategorySection({
   const color = category?.color ?? "#9CA3AF";
 
   return (
-    <section className="mati-category-section space-y-2">
-      <div className="flex items-center gap-2">
+    <section
+      className={cn(
+        "mati-category-section",
+        readOnly ? "space-y-1" : "space-y-2"
+      )}
+    >
+      <div className="flex items-center gap-1.5">
         <Badge
-          className="rounded-full border-0 text-white text-xs"
+          className={cn(
+            "rounded-full border-0 text-white",
+            readOnly ? "px-1.5 py-0 text-[10px] font-medium" : "text-xs"
+          )}
           style={{ backgroundColor: color }}
         >
           {title}
         </Badge>
-        <span className="text-xs text-muted-foreground">{items.length}</span>
+        <span
+          className={cn(
+            "text-muted-foreground",
+            readOnly ? "text-[10px]" : "text-xs"
+          )}
+        >
+          {items.length}
+        </span>
       </div>
       <SortableContext
         items={items.map((i) => i.id)}

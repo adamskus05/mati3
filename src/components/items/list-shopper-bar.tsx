@@ -34,26 +34,35 @@ export function ListShopperBar({
     return (
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
-        className="w-full gap-2 rounded-xl"
+        className="h-8 shrink-0 gap-1 rounded-lg px-2 text-xs text-muted-foreground"
         onClick={onStart}
       >
-        <ShoppingCart className="h-4 w-4" />
-        Jag handlar
+        <ShoppingCart className="h-3.5 w-3.5" />
+        Handla
       </Button>
     );
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
-      <Badge variant="secondary" className="gap-1 bg-transparent">
-        <ShoppingCart className="h-3.5 w-3.5" />
-        {isMe ? "Du handlar" : `${name} handlar`}
+    <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2 py-1">
+      <Badge
+        variant="secondary"
+        className="h-6 max-w-[10rem] gap-1 truncate border-0 bg-transparent px-0 text-[11px] font-medium"
+      >
+        <ShoppingCart className="h-3 w-3 shrink-0" />
+        <span className="truncate">{isMe ? "Du handlar" : `${name} handlar`}</span>
       </Badge>
       {isMe && (
-        <Button type="button" variant="ghost" size="sm" onClick={onStop}>
-          Sluta handla
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 shrink-0 px-2 text-[11px]"
+          onClick={onStop}
+        >
+          Sluta
         </Button>
       )}
     </div>

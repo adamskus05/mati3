@@ -17,7 +17,7 @@ export function PresetChips({
           key={p.id}
           variant="secondary"
           size="sm"
-          className="h-8 shrink-0 snap-start rounded-full px-3 text-xs"
+          className="h-7 shrink-0 snap-start rounded-full px-2.5 text-[11px]"
           onClick={() => onSelect(p)}
         >
           {p.name}
