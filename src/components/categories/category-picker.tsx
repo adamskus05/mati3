@@ -24,7 +24,7 @@ export function CategoryPicker({
   value: string;
   onChange: (value: string) => void;
   label?: string;
-  variant?: "sheet" | "inline" | "scroll";
+  variant?: "sheet" | "inline" | "scroll" | "chip";
   layout?: "wrap" | "grid";
   /** Compact chips for list footer (h-8). */
   dense?: boolean;
@@ -36,6 +36,56 @@ export function CategoryPicker({
   function pick(next: string) {
     onChange(next);
     setOpen(false);
+  }
+
+  if (variant === "chip") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 active:bg-muted"
+          aria-label={`Kategori: ${selected?.name ?? "Okategoriserad"}`}
+        >
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: selected?.color ?? "#9CA3AF" }}
+            aria-hidden
+          />
+          <span className="max-w-[5.5rem] truncate text-xs font-medium">
+            {selected?.name ?? "Övrigt"}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </button>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetContent
+            side="bottom"
+            className="max-h-[min(85dvh,520px)] rounded-t-2xl px-0 pb-8"
+          >
+            <SheetHeader className="border-b border-border px-4 pb-3 text-left">
+              <SheetTitle className="text-lg">Kategori vid tillägg</SheetTitle>
+            </SheetHeader>
+            <div className="flex max-h-[calc(85dvh-5rem)] flex-col gap-2 overflow-y-auto px-4 pt-3">
+              <CategoryOption
+                name="Okategoriserad"
+                color="#9CA3AF"
+                selected={value === "none"}
+                onPick={() => pick("none")}
+              />
+              {categories.map((c) => (
+                <CategoryOption
+                  key={c.id}
+                  name={c.name}
+                  color={c.color}
+                  selected={value === c.id}
+                  onPick={() => pick(c.id)}
+                />
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    );
   }
 
   if (variant === "scroll" || variant === "inline") {

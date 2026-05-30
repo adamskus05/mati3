@@ -35,15 +35,13 @@ import type {
   ShoppingItemWithCompleter,
   ShoppingListWithCreator,
 } from "@/lib/database.types";
-import { CategoryPicker } from "@/components/categories/category-picker";
-import { ListAddBar } from "@/components/items/list-add-bar";
+import { ListAddToolbar } from "@/components/items/list-add-toolbar";
 
 const ItemFormDialog = dynamic(
   () =>
     import("@/components/items/item-form-dialog").then((m) => m.ItemFormDialog),
   { ssr: false }
 );
-import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
 import {
   isShopperActive,
@@ -502,12 +500,7 @@ export function ShoppingListDetail({
   const itemsPending = isLoading && items.length === 0;
 
   return (
-    <div
-      className={cn(
-        "flex flex-col",
-        readOnly ? "gap-3 pb-4" : "-mx-4 min-h-[calc(100dvh-8rem)] pb-0"
-      )}
-    >
+    <div className={cn("pb-4", readOnly ? "space-y-3" : "space-y-0")}>
       <div
         className={cn(
           "flex shrink-0 items-center gap-2",
@@ -577,16 +570,25 @@ export function ShoppingListDetail({
         </div>
       )}
 
-      <div
-        className={cn(
-          "min-h-0 flex-1",
-          !readOnly && "overflow-y-auto px-4 pt-2"
-        )}
-      >
+      {!readOnly && (
+        <div className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+          <ListAddToolbar
+            categories={categories}
+            categoryId={addCategoryId}
+            onCategoryChange={pickAddCategory}
+            onQuickAdd={quickAdd}
+            onOpenForm={(prefill) => openAddForm(prefill ?? "")}
+            presets={presets}
+            onPresetSelect={addFromPreset}
+          />
+        </div>
+      )}
+
+      <div className={cn(!readOnly && "px-4 pt-3", readOnly && "space-y-2")}>
         {itemsPending ? (
           <ListItemsSkeleton compact={readOnly} />
         ) : (
-          <div className={readOnly ? "space-y-2" : "space-y-3 pb-4"}>
+          <div className={readOnly ? "space-y-2" : "space-y-3"}>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -635,30 +637,6 @@ export function ShoppingListDetail({
           </p>
         )}
       </div>
-
-      {!readOnly && (
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-border/50 bg-background/95 px-4 py-2 backdrop-blur-sm">
-          {presets.length > 0 && (
-            <div className="mb-2">
-              <PresetChips presets={presets} onSelect={addFromPreset} />
-            </div>
-          )}
-          <ListAddBar
-            onQuickAdd={quickAdd}
-            onOpenForm={(prefill) => openAddForm(prefill ?? "")}
-          />
-          <div className="mt-2">
-            <CategoryPicker
-              variant="scroll"
-              dense
-              label="Kategori"
-              categories={categories}
-              value={addCategoryId}
-              onChange={pickAddCategory}
-            />
-          </div>
-        </div>
-      )}
 
       {selectMode && selectedIds.size > 0 && (
         <BulkActionsBar
