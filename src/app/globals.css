@@ -157,6 +157,17 @@
   --mati-text-input: 1rem;
   --mati-text-title: 1.125rem;
   --mati-text-body: 0.9375rem;
+  /* Horizontal page gutter — tighter than px-4, still off the screen edge */
+  --mati-page-x: 0.75rem;
+}
+
+.mati-page-x {
+  padding-inline: var(--mati-page-x);
+}
+
+.mati-bleed-x {
+  margin-inline: calc(-1 * var(--mati-page-x));
+  padding-inline: var(--mati-page-x);
 }
 
 .mati-category-section {

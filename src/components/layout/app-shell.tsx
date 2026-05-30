@@ -72,7 +72,7 @@ export function AppShell({
     <div className="flex min-h-dvh flex-col bg-background">
       <OfflineBanner />
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
+        <div className="mx-auto flex w-full max-w-lg items-center justify-between mati-page-x py-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-primary">Mati</p>
             <HouseholdSwitcher
@@ -91,7 +91,7 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="app-main-with-bottom-nav mx-auto w-full max-w-lg flex-1 px-4 py-4">
+      <main className="app-main-with-bottom-nav mx-auto w-full max-w-lg flex-1 mati-page-x py-4">
         {children}
       </main>
 

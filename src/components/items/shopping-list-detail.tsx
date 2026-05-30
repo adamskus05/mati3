@@ -504,7 +504,7 @@ export function ShoppingListDetail({
       <div
         className={cn(
           "flex shrink-0 items-center gap-2",
-          !readOnly && "border-b border-border/40 px-4 pb-2"
+          !readOnly && "border-b border-border/40 pb-2"
         )}
       >
         <Link
@@ -560,7 +560,7 @@ export function ShoppingListDetail({
       </div>
 
       {!readOnly && isShopperActive(list) && (
-        <div className="shrink-0 border-b border-border/40 px-4 py-1.5">
+        <div className="shrink-0 border-b border-border/40 py-1.5">
           <ListShopperBar
             list={list}
             userId={userId}
@@ -571,7 +571,7 @@ export function ShoppingListDetail({
       )}
 
       {!readOnly && (
-        <div className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 border-b border-border/40 bg-background/95 py-2 backdrop-blur-sm">
           <ListAddToolbar
             categories={categories}
             categoryId={addCategoryId}
@@ -584,7 +584,7 @@ export function ShoppingListDetail({
         </div>
       )}
 
-      <div className={cn(!readOnly && "px-4 pt-3", readOnly && "space-y-2")}>
+      <div className={cn(!readOnly && "pt-3", readOnly && "space-y-2")}>
         {itemsPending ? (
           <ListItemsSkeleton compact={readOnly} />
         ) : (
