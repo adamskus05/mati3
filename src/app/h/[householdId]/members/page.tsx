@@ -1,8 +1,10 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { MembersView } from "@/components/household/members-view";
-import { fetchMembers } from "@/lib/queries/households";
+import { fetchMembers, fetchMyMembership } from "@/lib/queries/households";
 import { redirect } from "next/navigation";
-import type { MemberWithProfile } from "@/lib/database.types";
+import { QUERY_KEYS } from "@/lib/constants";
+import { getQueryClient } from "@/lib/query/get-query-client";
 
 export default async function MembersPage({
   params,
@@ -16,18 +18,21 @@ export default async function MembersPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  let initialMembers: MemberWithProfile[] | undefined;
-  try {
-    initialMembers = await fetchMembers(supabase, householdId);
-  } catch {
-    initialMembers = undefined;
-  }
+  const queryClient = getQueryClient();
+  await Promise.allSettled([
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.members(householdId),
+      queryFn: () => fetchMembers(supabase, householdId),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.myMembership(householdId, user.id),
+      queryFn: () => fetchMyMembership(supabase, householdId, user.id),
+    }),
+  ]);
 
   return (
-    <MembersView
-      householdId={householdId}
-      userId={user.id}
-      initialMembers={initialMembers}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <MembersView householdId={householdId} userId={user.id} />
+    </HydrationBoundary>
   );
 }

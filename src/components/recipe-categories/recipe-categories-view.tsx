@@ -112,12 +112,14 @@ function RecipeCategoryForm({
   onNameChange,
   onColorChange,
   onSubmit,
+  saving,
 }: {
   name: string;
   color: string;
   onNameChange: (v: string) => void;
   onColorChange: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  saving?: boolean;
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -158,8 +160,8 @@ function RecipeCategoryForm({
           className="h-8 w-full cursor-pointer rounded-lg p-0.5"
         />
       </div>
-      <Button type="submit" className="h-9 w-full rounded-lg">
-        Spara
+      <Button type="submit" className="h-9 w-full rounded-lg" disabled={saving}>
+        {saving ? "Sparar…" : "Spara"}
       </Button>
     </form>
   );
@@ -167,10 +169,8 @@ function RecipeCategoryForm({
 
 export function RecipeCategoriesView({
   householdId,
-  initialCategories,
 }: {
   householdId: string;
-  initialCategories?: RecipeCategory[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -179,6 +179,7 @@ export function RecipeCategoriesView({
   const [color, setColor] = useState<string>(CATEGORY_COLORS[0]);
   const [editCat, setEditCat] = useState<RecipeCategory | null>(null);
   const [deleteCat, setDeleteCat] = useState<RecipeCategory | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useHouseholdRealtime(householdId);
 
@@ -190,9 +191,7 @@ export function RecipeCategoriesView({
   const { data: categories = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.recipeCategories(householdId),
     queryFn: () => fetchRecipeCategories(createClient(), householdId),
-    initialData: initialCategories,
     staleTime: 60_000,
-    refetchOnMount: initialCategories === undefined,
   });
 
   const categoriesPending = isLoading && categories.length === 0;
@@ -203,41 +202,74 @@ export function RecipeCategoriesView({
       toast.error("Ingen anslutning");
       return;
     }
-    const supabase = createClient();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setSaving(true);
+    const key = QUERY_KEYS.recipeCategories(householdId);
+    const previous = queryClient.getQueryData<RecipeCategory[]>(key);
+
     if (editCat) {
-      const { error } = await supabase
+      queryClient.setQueryData<RecipeCategory[]>(key, (old) =>
+        old?.map((c) =>
+          c.id === editCat.id ? { ...c, name: trimmed, color } : c
+        )
+      );
+      setEditCat(null);
+      setOpen(false);
+
+      const { error } = await createClient()
         .from("recipe_categories")
-        .update({ name: name.trim(), color })
+        .update({ name: trimmed, color })
         .eq("id", editCat.id);
-      if (error) toast.error(error.message);
-      else {
-        setEditCat(null);
-        setOpen(false);
-        void queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.recipeCategories(householdId),
-        });
+
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData(key, previous);
+      } else {
         void queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.recipes(householdId),
         });
       }
-    } else {
-      const maxOrder = categories.reduce((m, c) => Math.max(m, c.sort_order), -1);
-      const { error } = await supabase.from("recipe_categories").insert({
+      return;
+    }
+
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const maxOrder = categories.reduce((m, c) => Math.max(m, c.sort_order), -1);
+    const optimistic: RecipeCategory = {
+      id: tempId,
+      household_id: householdId,
+      name: trimmed,
+      color,
+      sort_order: maxOrder + 1,
+      created_at: new Date().toISOString(),
+    };
+    queryClient.setQueryData<RecipeCategory[]>(key, (old) => [...(old ?? []), optimistic]);
+    setName("");
+    setOpen(false);
+
+    const { data, error } = await createClient()
+      .from("recipe_categories")
+      .insert({
         household_id: householdId,
-        name: name.trim(),
+        name: trimmed,
         color,
         sort_order: maxOrder + 1,
-      });
-      if (error) toast.error(error.message);
-      else {
-        setName("");
-        setOpen(false);
-        void queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.recipeCategories(householdId),
-        });
-        toast.success("Receptkategori skapad");
-      }
+      })
+      .select()
+      .single();
+
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      queryClient.setQueryData(key, previous);
+      return;
     }
+    queryClient.setQueryData<RecipeCategory[]>(key, (old) =>
+      old?.map((c) => (c.id === tempId ? (data as RecipeCategory) : c))
+    );
+    toast.success("Receptkategori skapad");
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -246,16 +278,24 @@ export function RecipeCategoriesView({
     if (!over || active.id === over.id) return;
     const oldIndex = categories.findIndex((c) => c.id === active.id);
     const newIndex = categories.findIndex((c) => c.id === over.id);
-    const reordered = arrayMove(categories, oldIndex, newIndex);
+    const reordered = arrayMove(categories, oldIndex, newIndex).map((c, i) => ({
+      ...c,
+      sort_order: i,
+    }));
+    const key = QUERY_KEYS.recipeCategories(householdId);
+    const previous = queryClient.getQueryData<RecipeCategory[]>(key);
+    queryClient.setQueryData<RecipeCategory[]>(key, reordered);
+
     const supabase = createClient();
-    await Promise.all(
+    const results = await Promise.all(
       reordered.map((c, i) =>
         supabase.from("recipe_categories").update({ sort_order: i }).eq("id", c.id)
       )
     );
-    void queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.recipeCategories(householdId),
-    });
+    if (results.some((r) => r.error)) {
+      toast.error("Kunde inte spara ordning");
+      queryClient.setQueryData(key, previous);
+    }
   }
 
   function openCreate() {
@@ -298,6 +338,7 @@ export function RecipeCategoriesView({
               onNameChange={setName}
               onColorChange={setColor}
               onSubmit={saveCategory}
+              saving={saving}
             />
           </DialogContent>
         </Dialog>

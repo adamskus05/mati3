@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,13 +44,25 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const items = navItems(householdId);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   useEffect(() => {
     for (const { href } of navItems(householdId)) {
       router.prefetch(href);
     }
-    prefetchHouseholdTabs(queryClient, householdId);
+
+    const runPrefetch = () => prefetchHouseholdTabs(queryClient, householdId);
+    if (typeof requestIdleCallback !== "undefined") {
+      const id = requestIdleCallback(runPrefetch, { timeout: 2000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(runPrefetch, 0);
+    return () => window.clearTimeout(t);
   }, [householdId, router, queryClient]);
 
   return (
@@ -84,16 +96,19 @@ export function AppShell({
         <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active =
-              href === `/h/${householdId}`
-                ? pathname === href ||
-                  (pathname.includes("/lists/") && !pathname.includes("/recipes"))
-                : pathname.startsWith(href);
+              pendingHref === href ||
+              (pendingHref === null &&
+                (href === `/h/${householdId}`
+                  ? pathname === href ||
+                    (pathname.includes("/lists/") && !pathname.includes("/recipes"))
+                  : pathname.startsWith(href)));
             return (
               <Link
                 key={href}
                 href={href}
                 prefetch
                 scroll={false}
+                onClick={() => setPendingHref(href)}
                 aria-label={label}
                 aria-current={active ? "page" : undefined}
                 className={cn(

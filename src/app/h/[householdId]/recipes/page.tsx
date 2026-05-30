@@ -1,9 +1,11 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { fetchRecipes } from "@/lib/queries/recipes";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { RecipesView } from "@/components/recipes/recipes-view";
 import { redirect } from "next/navigation";
-import type { RecipeCategory, RecipeWithCategory } from "@/lib/database.types";
+import { QUERY_KEYS } from "@/lib/constants";
+import { getQueryClient } from "@/lib/query/get-query-client";
 
 export default async function RecipesPage({
   params,
@@ -17,26 +19,21 @@ export default async function RecipesPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  let initialRecipes: RecipeWithCategory[] | undefined;
-  let initialRecipeCategories: RecipeCategory[] | undefined;
-
-  try {
-    initialRecipes = await fetchRecipes(supabase, householdId);
-  } catch {
-    initialRecipes = undefined;
-  }
-
-  try {
-    initialRecipeCategories = await fetchRecipeCategories(supabase, householdId);
-  } catch {
-    initialRecipeCategories = undefined;
-  }
+  const queryClient = getQueryClient();
+  await Promise.allSettled([
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.recipes(householdId),
+      queryFn: () => fetchRecipes(supabase, householdId),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.recipeCategories(householdId),
+      queryFn: () => fetchRecipeCategories(supabase, householdId),
+    }),
+  ]);
 
   return (
-    <RecipesView
-      householdId={householdId}
-      initialRecipes={initialRecipes}
-      initialRecipeCategories={initialRecipeCategories}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <RecipesView householdId={householdId} />
+    </HydrationBoundary>
   );
 }

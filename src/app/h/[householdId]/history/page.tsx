@@ -1,7 +1,9 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { HistoryView } from "@/components/lists/history-view";
 import { fetchArchivedLists } from "@/lib/queries/lists";
-import type { ShoppingListWithCreator } from "@/lib/database.types";
+import { QUERY_KEYS } from "@/lib/constants";
+import { getQueryClient } from "@/lib/query/get-query-client";
 
 export default async function HistoryPage({
   params,
@@ -10,15 +12,20 @@ export default async function HistoryPage({
 }) {
   const { householdId } = await params;
   const supabase = await createClient();
+  const queryClient = getQueryClient();
 
-  let initialLists: ShoppingListWithCreator[] | undefined;
   try {
-    initialLists = await fetchArchivedLists(supabase, householdId);
+    await queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.listHistory(householdId),
+      queryFn: () => fetchArchivedLists(supabase, householdId),
+    });
   } catch {
-    initialLists = undefined;
+    // Client refetches on failure
   }
 
   return (
-    <HistoryView householdId={householdId} initialLists={initialLists} />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <HistoryView householdId={householdId} />
+    </HydrationBoundary>
   );
 }

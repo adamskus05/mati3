@@ -120,13 +120,7 @@ function SortableListRow({
   );
 }
 
-export function ListsView({
-  householdId,
-  initialLists,
-}: {
-  householdId: string;
-  initialLists?: ShoppingListWithCreator[];
-}) {
+export function ListsView({ householdId }: { householdId: string }) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -134,6 +128,8 @@ export function ListsView({
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [sortMode, setSortMode] = useState<ListSortMode>("manual");
+  const [creating, setCreating] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(
@@ -154,9 +150,7 @@ export function ListsView({
   const { data: lists = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.lists(householdId),
     queryFn: () => fetchActiveLists(createClient(), householdId),
-    initialData: initialLists,
     staleTime: 60_000,
-    refetchOnMount: !initialLists,
   });
 
   const sortedLists = useMemo(() => {
@@ -195,41 +189,109 @@ export function ListsView({
       toast.error("Ingen anslutning");
       return;
     }
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setCreating(true);
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const maxOrder = lists.reduce((m, l) => Math.max(m, l.sort_order ?? 0), -1);
+    const now = new Date().toISOString();
+    const optimistic: ShoppingListWithCreator = {
+      id: tempId,
+      household_id: householdId,
+      name: trimmed,
+      created_by: null,
+      sort_order: maxOrder + 1,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      shopper_id: null,
+      shopper_started_at: null,
+      deleted_by: null,
+      creator: null,
+      shopper: null,
+      deleted_by_profile: null,
+    };
+
+    const previous = queryClient.getQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId)
+    );
+    queryClient.setQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId),
+      (old) => [...(old ?? []), optimistic]
+    );
+    setName("");
+    setOpen(false);
+
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const maxOrder = lists.reduce((m, l) => Math.max(m, l.sort_order ?? 0), -1);
-    const { error } = await supabase.from("shopping_lists").insert({
-      household_id: householdId,
-      name: name.trim(),
-      created_by: user?.id ?? null,
-      sort_order: maxOrder + 1,
-    });
+    const { data, error } = await supabase
+      .from("shopping_lists")
+      .insert({
+        household_id: householdId,
+        name: trimmed,
+        created_by: user?.id ?? null,
+        sort_order: maxOrder + 1,
+      })
+      .select("*, creator:profiles!shopping_lists_created_by_fkey(display_name, email)")
+      .single();
+
+    setCreating(false);
     if (error) {
       toast.error(error.message);
+      queryClient.setQueryData(QUERY_KEYS.lists(householdId), previous);
       return;
     }
-    setName("");
-    setOpen(false);
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lists(householdId) });
+    queryClient.setQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId),
+      (old) =>
+        old?.map((l) =>
+          l.id === tempId
+            ? ({ ...data, creator: data.creator ?? null } as ShoppingListWithCreator)
+            : l
+        ) ?? []
+    );
     toast.success("Lista skapad");
   }
 
   async function updateList(e: React.FormEvent) {
     e.preventDefault();
     if (!editId || !online) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+
+    setSavingEdit(true);
+    const previous = queryClient.getQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId)
+    );
+    queryClient.setQueryData<ShoppingListWithCreator[]>(
+      QUERY_KEYS.lists(householdId),
+      (old) =>
+        old?.map((l) =>
+          l.id === editId
+            ? { ...l, name: trimmed, updated_at: new Date().toISOString() }
+            : l
+        )
+    );
+    const savedId = editId;
+    setEditId(null);
+
     const supabase = createClient();
     const { error } = await supabase
       .from("shopping_lists")
-      .update({ name: editName.trim() })
-      .eq("id", editId);
+      .update({ name: trimmed })
+      .eq("id", savedId);
+
+    setSavingEdit(false);
     if (error) {
       toast.error(error.message);
+      queryClient.setQueryData(QUERY_KEYS.lists(householdId), previous);
+      setEditId(savedId);
+      setEditName(trimmed);
       return;
     }
-    setEditId(null);
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lists(householdId) });
   }
 
   async function deleteList(id: string) {
@@ -320,8 +382,8 @@ export function ListsView({
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Skapa
+              <Button type="submit" className="w-full" disabled={creating}>
+                {creating ? "Skapar…" : "Skapa"}
               </Button>
             </form>
           </DialogContent>
@@ -375,8 +437,8 @@ export function ListsView({
           </DialogHeader>
           <form onSubmit={updateList} className="space-y-4">
             <Input value={editName} onChange={(e) => setEditName(e.target.value)} required />
-            <Button type="submit" className="w-full">
-              Spara
+            <Button type="submit" className="w-full" disabled={savingEdit}>
+              {savingEdit ? "Sparar…" : "Spara"}
             </Button>
           </form>
         </DialogContent>

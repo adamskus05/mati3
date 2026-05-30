@@ -9,24 +9,15 @@ import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListsSkeleton } from "@/components/lists/lists-skeleton";
-import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 
-export function HistoryView({
-  householdId,
-  initialLists,
-}: {
-  householdId: string;
-  initialLists?: ShoppingListWithCreator[];
-}) {
+export function HistoryView({ householdId }: { householdId: string }) {
   useHouseholdRealtime(householdId);
 
   const { data: lists = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.listHistory(householdId),
     queryFn: () => fetchArchivedLists(createClient(), householdId),
-    initialData: initialLists,
     staleTime: 60_000,
-    refetchOnMount: !initialLists,
   });
 
   const listsPending = isLoading && lists.length === 0;

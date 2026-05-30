@@ -32,7 +32,22 @@ export function useOfflineSync() {
 
       if (flushed > 0) {
         toast.success(`Synkade ${flushed} offline-ändring${flushed === 1 ? "" : "ar"}`);
-        await queryClient.invalidateQueries();
+        await queryClient.invalidateQueries({
+          predicate: (query) => {
+            const root = query.queryKey[0];
+            return (
+              typeof root === "string" &&
+              [
+                "lists",
+                "listHistory",
+                "list",
+                "items",
+                "categories",
+                "recipes",
+              ].includes(root)
+            );
+          },
+        });
       }
     })();
   }, [online, queryClient]);

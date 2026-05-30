@@ -112,12 +112,14 @@ function CategoryForm({
   onNameChange,
   onColorChange,
   onSubmit,
+  saving,
 }: {
   name: string;
   color: string;
   onNameChange: (v: string) => void;
   onColorChange: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  saving?: boolean;
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -157,8 +159,8 @@ function CategoryForm({
           className="h-8 w-full cursor-pointer rounded-lg p-0.5"
         />
       </div>
-      <Button type="submit" className="h-9 w-full rounded-lg">
-        Spara
+      <Button type="submit" className="h-9 w-full rounded-lg" disabled={saving}>
+        {saving ? "Sparar…" : "Spara"}
       </Button>
     </form>
   );
@@ -166,11 +168,9 @@ function CategoryForm({
 
 export function CategoriesView({
   householdId,
-  initialCategories,
   embedded = false,
 }: {
   householdId: string;
-  initialCategories?: Category[];
   /** Hide page title when shown inside CategoriesHub */
   embedded?: boolean;
 }) {
@@ -181,6 +181,7 @@ export function CategoriesView({
   const [color, setColor] = useState<string>(CATEGORY_COLORS[0]);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [deleteCat, setDeleteCat] = useState<Category | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useHouseholdRealtime(householdId);
 
@@ -192,9 +193,7 @@ export function CategoriesView({
   const { data: categories = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.categories(householdId),
     queryFn: () => fetchCategories(createClient(), householdId),
-    initialData: initialCategories,
     staleTime: 60_000,
-    refetchOnMount: !initialCategories,
   });
 
   const categoriesPending = isLoading && categories.length === 0;
@@ -205,38 +204,69 @@ export function CategoriesView({
       toast.error("Ingen anslutning");
       return;
     }
-    const supabase = createClient();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setSaving(true);
+    const key = QUERY_KEYS.categories(householdId);
+    const previous = queryClient.getQueryData<Category[]>(key);
     if (editCat) {
-      const { error } = await supabase
+      queryClient.setQueryData<Category[]>(key, (old) =>
+        old?.map((c) =>
+          c.id === editCat.id ? { ...c, name: trimmed, color } : c
+        )
+      );
+      setEditCat(null);
+      setOpen(false);
+
+      const { error } = await createClient()
         .from("categories")
-        .update({ name: name.trim(), color })
+        .update({ name: trimmed, color })
         .eq("id", editCat.id);
-      if (error) toast.error(error.message);
-      else {
-        setEditCat(null);
-        setOpen(false);
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.categories(householdId),
-        });
+
+      setSaving(false);
+      if (error) {
+        toast.error(error.message);
+        queryClient.setQueryData(key, previous);
       }
-    } else {
-      const maxOrder = categories.reduce((m, c) => Math.max(m, c.sort_order), -1);
-      const { error } = await supabase.from("categories").insert({
+      return;
+    }
+
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const maxOrder = categories.reduce((m, c) => Math.max(m, c.sort_order), -1);
+    const optimistic: Category = {
+      id: tempId,
+      household_id: householdId,
+      name: trimmed,
+      color,
+      sort_order: maxOrder + 1,
+      created_at: new Date().toISOString(),
+    };
+    queryClient.setQueryData<Category[]>(key, (old) => [...(old ?? []), optimistic]);
+    setName("");
+    setOpen(false);
+
+    const { data, error } = await createClient()
+      .from("categories")
+      .insert({
         household_id: householdId,
-        name: name.trim(),
+        name: trimmed,
         color,
         sort_order: maxOrder + 1,
-      });
-      if (error) toast.error(error.message);
-      else {
-        setName("");
-        setOpen(false);
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.categories(householdId),
-        });
-        toast.success("Kategori skapad");
-      }
+      })
+      .select()
+      .single();
+
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      queryClient.setQueryData(key, previous);
+      return;
     }
+    queryClient.setQueryData<Category[]>(key, (old) =>
+      old?.map((c) => (c.id === tempId ? (data as Category) : c))
+    );
+    toast.success("Kategori skapad");
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -245,16 +275,24 @@ export function CategoriesView({
     if (!over || active.id === over.id) return;
     const oldIndex = categories.findIndex((c) => c.id === active.id);
     const newIndex = categories.findIndex((c) => c.id === over.id);
-    const reordered = arrayMove(categories, oldIndex, newIndex);
+    const reordered = arrayMove(categories, oldIndex, newIndex).map((c, i) => ({
+      ...c,
+      sort_order: i,
+    }));
+    const key = QUERY_KEYS.categories(householdId);
+    const previous = queryClient.getQueryData<Category[]>(key);
+    queryClient.setQueryData<Category[]>(key, reordered);
+
     const supabase = createClient();
-    await Promise.all(
+    const results = await Promise.all(
       reordered.map((c, i) =>
         supabase.from("categories").update({ sort_order: i }).eq("id", c.id)
       )
     );
-    queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.categories(householdId),
-    });
+    if (results.some((r) => r.error)) {
+      toast.error("Kunde inte spara ordning");
+      queryClient.setQueryData(key, previous);
+    }
   }
 
   function openCreate() {
@@ -308,6 +346,7 @@ export function CategoriesView({
               onNameChange={setName}
               onColorChange={setColor}
               onSubmit={saveCategory}
+              saving={saving}
             />
           </DialogContent>
         </Dialog>

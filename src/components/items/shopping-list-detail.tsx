@@ -26,6 +26,7 @@ import { ListItemsSkeleton } from "@/components/items/list-items-skeleton";
 import { useOnline } from "@/hooks/use-online";
 import { fetchListItems } from "@/lib/queries/items";
 import { fetchList } from "@/lib/queries/lists";
+import { fetchCategories } from "@/lib/queries/categories";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { enqueueMutation } from "@/lib/offline/mutation-queue";
 import type {
@@ -54,17 +55,11 @@ export function ShoppingListDetail({
   listId,
   userId,
   readOnly = false,
-  initialList,
-  initialItems,
-  initialCategories,
 }: {
   householdId: string;
   listId: string;
   userId: string;
   readOnly?: boolean;
-  initialList?: ShoppingListWithCreator;
-  initialItems?: ShoppingItemWithCompleter[];
-  initialCategories?: Category[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -96,32 +91,20 @@ export function ShoppingListDetail({
   const { data: list } = useQuery({
     queryKey: QUERY_KEYS.list(listId),
     queryFn: () => fetchList(createClient(), listId),
-    initialData: initialList ?? listFromCache,
+    placeholderData: listFromCache,
     staleTime: 60_000,
-    refetchOnMount: initialList === undefined && listFromCache === undefined,
   });
 
   const { data: categories = [] } = useQuery({
     queryKey: QUERY_KEYS.categories(householdId),
-    queryFn: async () => {
-      const { data } = await createClient()
-        .from("categories")
-        .select("*")
-        .eq("household_id", householdId)
-        .order("sort_order");
-      return data ?? [];
-    },
-    initialData: initialCategories,
+    queryFn: () => fetchCategories(createClient(), householdId),
     staleTime: 60_000,
-    refetchOnMount: !initialCategories,
   });
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.items(listId),
     queryFn: () => fetchListItems(createClient(), listId),
-    initialData: initialItems,
     staleTime: 30_000,
-    refetchOnMount: !initialItems,
   });
 
   const { data: presets = [] } = useQuery({
@@ -449,16 +432,24 @@ export function ShoppingListDetail({
       return;
     }
     const ids = [...selectedIds];
+    const itemsKey = QUERY_KEYS.items(listId);
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(itemsKey);
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(itemsKey, (old) =>
+      old?.map((item) =>
+        ids.includes(item.id) ? { ...item, category_id: categoryId } : item
+      )
+    );
+    setLastCategoryId(categoryId);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+
     const { error } = await createClient()
       .from("shopping_items")
       .update({ category_id: categoryId })
       .in("id", ids);
-    if (error) toast.error(error.message);
-    else {
-      setLastCategoryId(categoryId);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.items(listId) });
-      setSelectedIds(new Set());
-      setSelectMode(false);
+    if (error) {
+      toast.error(error.message);
+      queryClient.setQueryData(itemsKey, previous);
     }
   }
 

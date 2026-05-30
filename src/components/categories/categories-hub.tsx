@@ -4,19 +4,9 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CategoriesView } from "@/components/categories/categories-view";
 import { RecipeCategoriesView } from "@/components/recipe-categories/recipe-categories-view";
-import type { Category, RecipeCategory } from "@/lib/database.types";
-
 type Tab = "items" | "recipes";
 
-export function CategoriesHub({
-  householdId,
-  initialItemCategories,
-  initialRecipeCategories,
-}: {
-  householdId: string;
-  initialItemCategories?: Category[];
-  initialRecipeCategories?: RecipeCategory[];
-}) {
+export function CategoriesHub({ householdId }: { householdId: string }) {
   const [tab, setTab] = useState<Tab>("items");
 
   return (
@@ -64,16 +54,9 @@ export function CategoriesHub({
       </div>
 
       {tab === "items" ? (
-        <CategoriesView
-          householdId={householdId}
-          initialCategories={initialItemCategories}
-          embedded
-        />
+        <CategoriesView householdId={householdId} embedded />
       ) : (
-        <RecipeCategoriesView
-          householdId={householdId}
-          initialCategories={initialRecipeCategories}
-        />
+        <RecipeCategoriesView householdId={householdId} />
       )}
     </div>
   );

@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { instructionsFromJson } from "@/lib/queries/recipes";
-import type { RecipeWithIngredients } from "@/lib/database.types";
+import type {
+  RecipeWithCategory,
+  RecipeWithIngredients,
+} from "@/lib/database.types";
 import { QUERY_KEYS } from "@/lib/constants";
 import { useOnline } from "@/hooks/use-online";
 import { ExportRecipeDialog } from "@/components/recipes/export-recipe-dialog";
@@ -38,6 +41,7 @@ export function RecipeDetail({
   const online = useOnline();
   const queryClient = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const instructionGroups = groupInstructionSteps(
     instructionsFromJson(recipe.instructions)
@@ -51,19 +55,28 @@ export function RecipeDetail({
     }
     if (!confirm(`Ta bort receptet "${recipe.title}"?`)) return;
 
-    const supabase = createClient();
-    const { error } = await supabase.from("recipes").delete().eq("id", recipe.id);
+    setDeleting(true);
+    const key = QUERY_KEYS.recipes(householdId);
+    const previous = queryClient.getQueryData<RecipeWithCategory[]>(key);
+    queryClient.setQueryData<RecipeWithCategory[]>(key, (old) =>
+      old?.filter((r) => r.id !== recipe.id)
+    );
+    router.push(`/h/${householdId}/recipes`);
+
+    const { error } = await createClient()
+      .from("recipes")
+      .delete()
+      .eq("id", recipe.id);
+
+    setDeleting(false);
     if (error) {
       toast.error(error.message);
+      queryClient.setQueryData(key, previous);
+      router.push(`/h/${householdId}/recipes/${recipe.id}`);
       return;
     }
 
-    void queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.recipes(householdId),
-    });
     toast.success("Recept borttaget");
-    router.push(`/h/${householdId}/recipes`);
-    router.refresh();
   }
 
   return (
@@ -139,6 +152,7 @@ export function RecipeDetail({
           variant="outline"
           className="rounded-xl text-destructive"
           onClick={handleDelete}
+          disabled={deleting}
         >
           <Trash2 className="h-4 w-4" />
         </Button>

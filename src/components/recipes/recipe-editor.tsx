@@ -12,7 +12,11 @@ import {
   updateRecipe,
   type RecipeUpsertPayload,
 } from "@/lib/queries/recipes";
-import type { RecipeIngredientInput, RecipeWithIngredients } from "@/lib/database.types";
+import type {
+  RecipeIngredientInput,
+  RecipeWithCategory,
+  RecipeWithIngredients,
+} from "@/lib/database.types";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS, UNITS } from "@/lib/constants";
 import {
@@ -221,26 +225,78 @@ export function RecipeEditor({
     setSaving(true);
     const supabase = createClient();
     const payload = buildPayload();
+    const recipesKey = QUERY_KEYS.recipes(householdId);
+    const previousRecipes =
+      queryClient.getQueryData<RecipeWithCategory[]>(recipesKey);
+    const selectedCategory = recipeCategories.find(
+      (c) => c.id === recipeCategoryId
+    );
+    const now = new Date().toISOString();
 
-    try {
-      if (isEdit && recipe) {
+    if (isEdit && recipe) {
+      const optimistic: RecipeWithCategory = {
+        ...recipe,
+        title: payload.title,
+        source_url: payload.source_url ?? null,
+        image_url: payload.image_url ?? null,
+        recipe_category_id: payload.recipe_category_id ?? null,
+        recipe_category: selectedCategory
+          ? { id: selectedCategory.id, name: selectedCategory.name, color: selectedCategory.color }
+          : null,
+        updated_at: now,
+      };
+      queryClient.setQueryData<RecipeWithCategory[]>(recipesKey, (old) =>
+        old?.map((r) => (r.id === recipe.id ? optimistic : r))
+      );
+      router.push(`/h/${householdId}/recipes/${recipe.id}`);
+
+      try {
         await updateRecipe(supabase, recipe.id, payload);
         toast.success("Recept uppdaterat");
-        router.push(`/h/${householdId}/recipes/${recipe.id}`);
-      } else {
-        const created = await createRecipe(supabase, householdId, userId, payload);
-        toast.success("Recept sparat");
-        router.push(`/h/${householdId}/recipes/${created.id}`);
+        void queryClient.invalidateQueries({ queryKey: recipesKey });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Kunde inte spara");
+        queryClient.setQueryData(recipesKey, previousRecipes);
+      } finally {
+        setSaving(false);
       }
-      void queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.recipes(householdId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.recipeCategories(householdId),
-      });
-      router.refresh();
+      return;
+    }
+
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const optimisticNew: RecipeWithCategory = {
+      id: tempId,
+      household_id: householdId,
+      title: payload.title,
+      source_url: payload.source_url ?? null,
+      image_url: payload.image_url ?? null,
+      recipe_category_id: payload.recipe_category_id ?? null,
+      recipe_category: selectedCategory
+        ? { id: selectedCategory.id, name: selectedCategory.name, color: selectedCategory.color }
+        : null,
+      instructions: payload.instructions as RecipeWithCategory["instructions"],
+      created_by: userId,
+      created_at: now,
+      updated_at: now,
+    };
+    queryClient.setQueryData<RecipeWithCategory[]>(recipesKey, (old) => [
+      optimisticNew,
+      ...(old ?? []),
+    ]);
+    router.push(`/h/${householdId}/recipes`);
+
+    try {
+      const created = await createRecipe(supabase, householdId, userId, payload);
+      queryClient.setQueryData<RecipeWithCategory[]>(recipesKey, (old) =>
+        old?.map((r) => (r.id === tempId ? { ...created, recipe_category: created.recipe_category ?? optimisticNew.recipe_category } : r))
+      );
+      toast.success("Recept sparat");
+      router.push(`/h/${householdId}/recipes/${created.id}`);
+      void queryClient.invalidateQueries({ queryKey: recipesKey });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Kunde inte spara");
+      queryClient.setQueryData(recipesKey, previousRecipes);
+      router.push(`/h/${householdId}/recipes/new`);
     } finally {
       setSaving(false);
     }

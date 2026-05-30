@@ -39,12 +39,21 @@ export function DeleteCategoryDialog({
   const queryClient = useQueryClient();
   const [targetId, setTargetId] = useState<string>("uncategorized");
   const [mode, setMode] = useState<"move" | "uncategorize">("move");
+  const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
     if (!online) {
       toast.error("Ingen anslutning");
       return;
     }
+    setDeleting(true);
+    const catKey = QUERY_KEYS.categories(householdId);
+    const previousCats = queryClient.getQueryData<Category[]>(catKey);
+    queryClient.setQueryData<Category[]>(catKey, (old) =>
+      old?.filter((c) => c.id !== category.id)
+    );
+    onClose();
+
     const supabase = createClient();
 
     const { data: items } = await supabase
@@ -60,6 +69,8 @@ export function DeleteCategoryDialog({
           .eq("category_id", category.id);
         if (error) {
           toast.error(error.message);
+          setDeleting(false);
+          queryClient.setQueryData(catKey, previousCats);
           return;
         }
       } else {
@@ -69,22 +80,25 @@ export function DeleteCategoryDialog({
           .eq("category_id", category.id);
         if (error) {
           toast.error(error.message);
+          setDeleting(false);
+          queryClient.setQueryData(catKey, previousCats);
           return;
         }
       }
     }
 
     const { error } = await supabase.from("categories").delete().eq("id", category.id);
+    setDeleting(false);
     if (error) {
       toast.error(error.message);
+      queryClient.setQueryData(catKey, previousCats);
       return;
     }
 
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: QUERY_KEYS.categories(householdId),
     });
     toast.success("Kategori borttagen");
-    onClose();
   }
 
   return (
@@ -138,8 +152,13 @@ export function DeleteCategoryDialog({
             <Button variant="outline" className="flex-1" onClick={onClose}>
               Avbryt
             </Button>
-            <Button variant="destructive" className="flex-1" onClick={handleDelete}>
-              Ta bort
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Tar bort…" : "Ta bort"}
             </Button>
           </div>
         </div>

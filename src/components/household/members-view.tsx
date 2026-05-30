@@ -28,11 +28,9 @@ import { toast } from "sonner";
 export function MembersView({
   householdId,
   userId,
-  initialMembers,
 }: {
   householdId: string;
   userId: string;
-  initialMembers?: MemberWithProfile[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -61,9 +59,7 @@ export function MembersView({
   } = useQuery({
     queryKey: QUERY_KEYS.members(householdId),
     queryFn: () => fetchMembers(createClient(), householdId),
-    initialData: initialMembers,
     staleTime: 60_000,
-    refetchOnMount: !initialMembers,
     throwOnError: false,
   });
 
@@ -96,16 +92,24 @@ export function MembersView({
   async function removeMember(targetUserId: string, name: string) {
     if (!online || !isOwner) return;
     if (!confirm(`Ta bort ${name} från hushållet?`)) return;
+
+    const key = QUERY_KEYS.members(householdId);
+    const previous = queryClient.getQueryData<MemberWithProfile[]>(key);
+    queryClient.setQueryData<MemberWithProfile[]>(key, (old) =>
+      old?.filter((m) => m.user_id !== targetUserId)
+    );
+
     const { error } = await createClient().rpc("remove_household_member", {
       p_household_id: householdId,
       p_user_id: targetUserId,
     });
-    if (error) toast.error(error.message);
-    else {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members(householdId) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events(householdId) });
-      toast.success(`${name} borttagen`);
+    if (error) {
+      toast.error(error.message);
+      queryClient.setQueryData(key, previous);
+      return;
     }
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events(householdId) });
+    toast.success(`${name} borttagen`);
   }
 
   if (membersError) {

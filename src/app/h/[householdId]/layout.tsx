@@ -1,7 +1,13 @@
+import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchHousehold } from "@/lib/queries/households";
 import { AppShell } from "@/components/layout/app-shell";
+
+const getHouseholdForLayout = cache(async (householdId: string) => {
+  const supabase = await createClient();
+  return fetchHousehold(supabase, householdId);
+});
 
 export default async function HouseholdLayout({
   children,
@@ -18,7 +24,7 @@ export default async function HouseholdLayout({
 
   if (!user) redirect("/login");
 
-  const household = await fetchHousehold(supabase, householdId);
+  const household = await getHouseholdForLayout(householdId);
   if (!household) notFound();
 
   return (

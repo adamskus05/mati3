@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ChevronRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchRecipes } from "@/lib/queries/recipes";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS } from "@/lib/constants";
-import type { RecipeCategory, RecipeWithCategory } from "@/lib/database.types";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -16,6 +15,7 @@ import {
   type RecipeCategoryFilter,
 } from "@/components/recipes/recipe-category-filter";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
+import { prefetchRecipeDetail } from "@/lib/query/prefetch-recipe-detail";
 
 function RecipesSkeleton() {
   return (
@@ -27,35 +27,34 @@ function RecipesSkeleton() {
   );
 }
 
-export function RecipesView({
-  householdId,
-  initialRecipes,
-  initialRecipeCategories,
-}: {
-  householdId: string;
-  initialRecipes?: RecipeWithCategory[];
-  initialRecipeCategories?: RecipeCategory[];
-}) {
+export function RecipesView({ householdId }: { householdId: string }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<RecipeCategoryFilter>("all");
+  const queryClient = useQueryClient();
 
   useHouseholdRealtime(householdId);
+
+  function warmRecipe(recipeId: string) {
+    prefetchRecipeDetail(queryClient, recipeId);
+  }
 
   const { data: recipes = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.recipes(householdId),
     queryFn: () => fetchRecipes(createClient(), householdId),
-    initialData: initialRecipes,
     staleTime: 30_000,
-    refetchOnMount: "always",
   });
 
   const { data: recipeCategories = [] } = useQuery({
     queryKey: QUERY_KEYS.recipeCategories(householdId),
     queryFn: () => fetchRecipeCategories(createClient(), householdId),
-    initialData: initialRecipeCategories,
     staleTime: 60_000,
-    refetchOnMount: initialRecipeCategories === undefined,
   });
+
+  useEffect(() => {
+    for (const recipe of recipes.slice(0, 4)) {
+      prefetchRecipeDetail(queryClient, recipe.id);
+    }
+  }, [householdId, recipes, queryClient]);
 
   const filtered = useMemo(() => {
     let list = recipes;
@@ -118,6 +117,9 @@ export function RecipesView({
             <li key={recipe.id}>
               <Link
                 href={`/h/${householdId}/recipes/${recipe.id}`}
+                prefetch
+                onPointerEnter={() => warmRecipe(recipe.id)}
+                onTouchStart={() => warmRecipe(recipe.id)}
                 className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-3 transition-colors hover:bg-muted/50 active:bg-muted"
               >
                 <div className="min-w-0 flex-1">

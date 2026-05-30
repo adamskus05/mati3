@@ -45,10 +45,12 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
               "lists",
               "listHistory",
               "items",
+              "list",
               "households",
               "members",
               "recipes",
               "recipeCategories",
+              "presets",
             ].includes(query.queryKey[0]),
         },
       }}

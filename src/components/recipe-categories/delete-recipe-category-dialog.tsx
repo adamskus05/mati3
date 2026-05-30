@@ -39,12 +39,21 @@ export function DeleteRecipeCategoryDialog({
   const queryClient = useQueryClient();
   const [targetId, setTargetId] = useState<string>("uncategorized");
   const [mode, setMode] = useState<"move" | "uncategorize">("move");
+  const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
     if (!online) {
       toast.error("Ingen anslutning");
       return;
     }
+    setDeleting(true);
+    const catKey = QUERY_KEYS.recipeCategories(householdId);
+    const previousCats = queryClient.getQueryData<RecipeCategory[]>(catKey);
+    queryClient.setQueryData<RecipeCategory[]>(catKey, (old) =>
+      old?.filter((c) => c.id !== category.id)
+    );
+    onClose();
+
     const supabase = createClient();
 
     if (mode === "move" && targetId !== "uncategorized") {
@@ -54,6 +63,8 @@ export function DeleteRecipeCategoryDialog({
         .eq("recipe_category_id", category.id);
       if (error) {
         toast.error(error.message);
+        setDeleting(false);
+        queryClient.setQueryData(catKey, previousCats);
         return;
       }
     } else {
@@ -63,6 +74,8 @@ export function DeleteRecipeCategoryDialog({
         .eq("recipe_category_id", category.id);
       if (error) {
         toast.error(error.message);
+        setDeleting(false);
+        queryClient.setQueryData(catKey, previousCats);
         return;
       }
     }
@@ -71,19 +84,17 @@ export function DeleteRecipeCategoryDialog({
       .from("recipe_categories")
       .delete()
       .eq("id", category.id);
+    setDeleting(false);
     if (error) {
       toast.error(error.message);
+      queryClient.setQueryData(catKey, previousCats);
       return;
     }
 
     void queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.recipeCategories(householdId),
-    });
-    void queryClient.invalidateQueries({
       queryKey: QUERY_KEYS.recipes(householdId),
     });
     toast.success("Receptkategori borttagen");
-    onClose();
   }
 
   return (
@@ -137,8 +148,13 @@ export function DeleteRecipeCategoryDialog({
             <Button variant="outline" className="flex-1" onClick={onClose}>
               Avbryt
             </Button>
-            <Button variant="destructive" className="flex-1" onClick={handleDelete}>
-              Ta bort
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Tar bort…" : "Ta bort"}
             </Button>
           </div>
         </div>

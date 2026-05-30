@@ -1,8 +1,10 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { fetchActiveLists } from "@/lib/queries/lists";
 import { ListsView } from "@/components/lists/lists-view";
 import { redirect } from "next/navigation";
-import type { ShoppingListWithCreator } from "@/lib/database.types";
+import { QUERY_KEYS } from "@/lib/constants";
+import { getQueryClient } from "@/lib/query/get-query-client";
 
 export default async function HouseholdPage({
   params,
@@ -16,14 +18,19 @@ export default async function HouseholdPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  let initialLists: ShoppingListWithCreator[] | undefined;
+  const queryClient = getQueryClient();
   try {
-    initialLists = await fetchActiveLists(supabase, householdId);
+    await queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.lists(householdId),
+      queryFn: () => fetchActiveLists(supabase, householdId),
+    });
   } catch {
-    initialLists = undefined;
+    // Client refetches on failure
   }
 
   return (
-    <ListsView householdId={householdId} initialLists={initialLists} />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ListsView householdId={householdId} />
+    </HydrationBoundary>
   );
 }
