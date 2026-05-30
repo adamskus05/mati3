@@ -148,8 +148,7 @@
 }
 
 :root {
-  --mati-nav-bar-height: 3rem;
-  --mati-tab-bar-inner-bottom: 6px;
+  --mati-nav-bar-height: 2.75rem;
   --mati-safe-bottom: 0px;
   --mati-bottom-nav-total: var(--mati-nav-bar-height);
   /* Compact touch scale — ~40px targets, readable type */
@@ -197,7 +196,7 @@
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
-  padding-bottom: var(--mati-tab-bar-inner-bottom);
+  align-items: flex-end;
   overflow: hidden;
 }
 

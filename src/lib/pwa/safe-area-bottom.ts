@@ -1,9 +1,3 @@
-/**
- * Extra padding below the tab bar. iOS standalone already insets the viewport;
- * adding env() again lifts the whole bar too high.
- */
-export const TAB_BAR_INNER_BOTTOM_PX = 6;
-
 const STORAGE_KEY = "mati:safe-bottom-v3";
 const CSS_VAR = "--mati-safe-bottom-locked";
 
