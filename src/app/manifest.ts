@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Gemensamma inköpslistor för hushållet",
     start_url: "/",
     display: "standalone",
-    background_color: "#9CB396",
-    theme_color: "#9CB396",
+    background_color: "#F0F4EF",
+    theme_color: "#F0F4EF",
     lang: "sv",
     orientation: "portrait-primary",
     icons: [

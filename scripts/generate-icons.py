@@ -11,12 +11,13 @@ SRC = ROOT / "public/icons/source.png"
 OUT = ROOT / "public/icons"
 APPLE = ROOT / "public/apple-touch-icon.png"
 APP_ICON = ROOT / "src/app/icon.png"
-BG = (156, 179, 150)  # sage #9CB396
-ALPHA_CUTOFF = 32
+# Match viewport themeColor in layout.tsx — avoids a dark ring on home-screen icons.
+BG = (240, 244, 239)  # #F0F4EF
+ALPHA_CUTOFF = 64
 
 
 def clean_alpha_matte(img: Image.Image) -> Image.Image:
-    """Drop remove-bg halos and unblend dark mattes before compositing."""
+    """Remove remove-bg fringe; keep a crisp edge for resize."""
     img = img.convert("RGBA")
     px = img.load()
     w, h = img.size
@@ -27,19 +28,43 @@ def clean_alpha_matte(img: Image.Image) -> Image.Image:
             if a <= ALPHA_CUTOFF:
                 px[x, y] = (0, 0, 0, 0)
                 continue
-            if a >= 250:
-                continue
-            # Near-white removal specks → transparent
             if r >= 248 and g >= 248 and b >= 248:
                 px[x, y] = (0, 0, 0, 0)
                 continue
+            if a >= 250:
+                continue
+            # Semi-transparent removal halos → fully transparent
+            px[x, y] = (0, 0, 0, 0)
 
-            af = a / 255.0
-            # Unblend from black matte (common remove-bg artifact → dark outline)
-            ur = min(255, max(0, round(r / af)))
-            ug = min(255, max(0, round(g / af)))
-            ub = min(255, max(0, round(b / af)))
-            px[x, y] = (ur, ug, ub, a)
+    return img
+
+
+def strip_edge_halo(img: Image.Image) -> Image.Image:
+    """Remove muddy resize halos touching the background."""
+    px = img.load()
+    w, h = img.size
+    br, bgg, bb = BG
+
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            r, g, b = px[x, y]
+            if (r, g, b) == BG:
+                continue
+            touches_bg = (
+                px[x + 1, y] == BG
+                or px[x - 1, y] == BG
+                or px[x, y + 1] == BG
+                or px[x, y - 1] == BG
+            )
+            if not touches_bg:
+                continue
+            delta = (br - r) + (bgg - g) + (bb - b)
+            if delta < 18:
+                continue
+            # Keep dark illustration strokes (basket outlines, etc.)
+            if g > 80 and r < 70 and b < 70:
+                continue
+            px[x, y] = BG
 
     return img
 
@@ -56,7 +81,7 @@ def render_icon(size: int, src: Image.Image, fill: float) -> Image.Image:
     offset = ((size - inner) // 2, (size - inner) // 2)
     layer.paste(scaled, offset, scaled)
     canvas.paste(layer, mask=layer.split()[3])
-    return canvas
+    return strip_edge_halo(canvas)
 
 
 def main() -> None:
