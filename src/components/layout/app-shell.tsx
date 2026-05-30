@@ -69,9 +69,9 @@ export function AppShell({
   }, [householdId, router, queryClient]);
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-background supports-[min-height:100dvh]:min-h-dvh">
       <OfflineBanner />
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-40 shrink-0 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between mati-page-x py-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-primary">Mati</p>
@@ -91,11 +91,11 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="app-main-with-bottom-nav mx-auto w-full max-w-lg flex-1 mati-page-x py-4">
+      <main className="app-main-scroll mx-auto w-full max-w-lg mati-page-x py-4">
         {children}
       </main>
 
-      <nav className="app-bottom-nav" aria-label="Huvudnavigering">
+      <nav className="app-bottom-nav shrink-0" aria-label="Huvudnavigering">
         <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active =

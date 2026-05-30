@@ -174,19 +174,15 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Tab bar: content row + locked safe-area padding below (home indicator) */
+/* Tab bar in document flow (not fixed) — same position on every tab regardless of content height */
 .app-bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   z-index: 40;
+  flex-shrink: 0;
   box-sizing: border-box;
   padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
   contain: layout style;
-  transform: translateZ(0);
   overflow: hidden;
 }
 
@@ -198,8 +194,12 @@
   overflow: hidden;
 }
 
-.app-main-with-bottom-nav {
-  padding-bottom: var(--mati-bottom-nav-total);
+.app-main-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 .scrollbar-hide {

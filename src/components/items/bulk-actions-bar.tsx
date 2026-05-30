@@ -26,7 +26,7 @@ export function BulkActionsBar({
   onCancel: () => void;
 }) {
   return (
-    <div className="sticky bottom-[var(--mati-bottom-nav-total)] z-30 mati-bleed-x border-t border-border bg-background/95 py-2 backdrop-blur-sm">
+    <div className="sticky bottom-0 z-30 mati-bleed-x border-t border-border bg-background/95 py-2 backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{count} valda</span>
         <Button type="button" size="sm" variant="outline" className="gap-1" onClick={onComplete}>
