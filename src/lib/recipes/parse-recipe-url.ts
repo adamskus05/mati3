@@ -18,6 +18,10 @@ export type ParsedRecipe = {
 const UNITS =
   /^(st|kg|g|l|dl|cl|ml|msk|tsk|krm|paket|förp|burk|näve|bit|bitar|förpackning)\b/i;
 
+/** Leading quantity including unicode fractions (½, 1½, 3½). */
+const QUANTITY_PREFIX =
+  /^((?:\d+(?:[.,]\d+)?|\d+\/\d+)|[½¼¾⅓⅔]|\d+[½¼¾])(?:\s+|$)/;
+
 const INSTRUCTION_TYPES = new Set([
   "HowToStep",
   "HowToDirection",
@@ -35,20 +39,28 @@ export function parseIngredientLine(line: string): ParsedIngredient {
   let unit: string | undefined;
   let nameStart = 0;
 
-  const first = parts[0]?.replace(",", ".");
-  const qtyMatch = first?.match(/^(\d+(?:[.,]\d+)?|\d+\/\d+)$/);
-  if (qtyMatch) {
-    const q = qtyMatch[1];
+  const qtyPrefix = raw.match(QUANTITY_PREFIX);
+  if (qtyPrefix) {
+    const q = qtyPrefix[1];
     if (q.includes("/")) {
       const [a, b] = q.split("/").map(Number);
       quantity = b ? a / b : Number(a);
+    } else if (/[½¼¾]/.test(q)) {
+      const unicodeMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
+      const digitMixed = q.match(/^(\d+)([½¼¾])$/);
+      if (digitMixed) {
+        quantity = parseInt(digitMixed[1], 10) + (unicodeMap[digitMixed[2]] ?? 0);
+      } else {
+        quantity = unicodeMap[q] ?? undefined;
+      }
     } else {
       quantity = parseFloat(q.replace(",", "."));
     }
-    nameStart = 1;
-    if (parts[1] && UNITS.test(parts[1])) {
-      unit = parts[1].toLowerCase();
-      nameStart = 2;
+    const consumed = qtyPrefix[0].trim().split(/\s+/).length;
+    nameStart = consumed;
+    if (parts[nameStart] && UNITS.test(parts[nameStart])) {
+      unit = parts[nameStart].toLowerCase();
+      nameStart += 1;
     }
   } else if (parts[0] && UNITS.test(parts[0]) && parts[1]) {
     unit = parts[0].toLowerCase();
@@ -59,14 +71,26 @@ export function parseIngredientLine(line: string): ParsedIngredient {
   return { name, quantity, unit, raw };
 }
 
+function normalizeSectionLabel(label: string): string {
+  return label.replace(/:$/, "").trim().toLowerCase();
+}
+
+function looksLikeIngredientAmount(line: string): boolean {
+  const raw = line.trim();
+  if (!raw) return false;
+  if (QUANTITY_PREFIX.test(raw)) return true;
+  const parsed = parseIngredientLine(raw);
+  return parsed.quantity != null || Boolean(parsed.unit);
+}
+
 /** Heuristic: line is a group heading (e.g. "Till biffarna:") not an ingredient. */
 export function isIngredientHeaderLine(line: string): boolean {
   const raw = line.trim();
   if (!raw) return false;
   if (raw.endsWith(":")) return true;
-  const parsed = parseIngredientLine(raw);
-  if (parsed.quantity != null || parsed.unit) return false;
-  return !/^\d/.test(raw);
+  if (looksLikeIngredientAmount(raw)) return false;
+  if (/^till\s+/i.test(raw)) return true;
+  return false;
 }
 
 function schemaTypes(value: unknown): string[] {
@@ -242,9 +266,21 @@ function parseIngredientsFromItems(
       currentSection = trimmed.replace(/:$/, "").trim();
       return;
     }
+    const sectionForLine = activeSection ?? currentSection;
+    if (
+      sectionForLine &&
+      normalizeSectionLabel(trimmed) === normalizeSectionLabel(sectionForLine)
+    ) {
+      return;
+    }
     const ing = parseIngredientLine(trimmed);
     if (!ing.name) return;
-    const sectionForLine = activeSection ?? currentSection;
+    if (
+      sectionForLine &&
+      normalizeSectionLabel(ing.name) === normalizeSectionLabel(sectionForLine)
+    ) {
+      return;
+    }
     out.push({ ...ing, section: sectionForLine });
   }
 
@@ -392,9 +428,83 @@ function parseInstructionsField(field: unknown): string[] {
     .filter(Boolean);
 }
 
+function decodeArlaEmbeddedText(text: string): string {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    )
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+}
+
+type ArlaIngredientGroupJson = {
+  title?: string | null;
+  ingredients?: {
+    formattedName?: string;
+    formattedAmount?: string;
+  }[];
+};
+
+/** Arla embeds grouped ingredients in page HTML (more accurate than flat JSON-LD). */
+function parseArlaIngredientGroupsFromHtml(html: string): ParsedIngredient[] | null {
+  const key = "ingredientGroups";
+  const idx = html.indexOf(key);
+  if (idx < 0) return null;
+
+  const start = html.indexOf("[", idx);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let end = start;
+  for (let i = start; i < html.length; i++) {
+    const ch = html[i];
+    if (ch === "[") depth++;
+    else if (ch === "]") {
+      depth--;
+      if (depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+  }
+
+  let groups: ArlaIngredientGroupJson[];
+  try {
+    groups = JSON.parse(decodeArlaEmbeddedText(html.slice(start, end))) as ArlaIngredientGroupJson[];
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(groups) || groups.length === 0) return null;
+
+  const out: ParsedIngredient[] = [];
+  for (const group of groups) {
+    const section = group.title?.trim().replace(/:$/, "") || undefined;
+    for (const item of group.ingredients ?? []) {
+      const name = decodeArlaEmbeddedText(item.formattedName ?? "").trim();
+      const amount = decodeArlaEmbeddedText(item.formattedAmount ?? "").trim();
+      if (!name) continue;
+      const line = amount ? `${amount} ${name}` : name;
+      if (section && normalizeSectionLabel(line) === normalizeSectionLabel(section)) {
+        continue;
+      }
+      const ing = parseIngredientLine(line);
+      if (!ing.name) continue;
+      if (section && normalizeSectionLabel(ing.name) === normalizeSectionLabel(section)) {
+        continue;
+      }
+      out.push({ ...ing, section });
+    }
+  }
+
+  return out.length > 0 ? out : null;
+}
+
 /** Extract recipe from HTML using schema.org JSON-LD (and common variants). */
 export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRecipe | null {
   const blocks = extractJsonLdBlocks(html);
+  const arlaIngredients = parseArlaIngredientGroupsFromHtml(html);
 
   for (const block of blocks) {
     const idMap = buildJsonLdIdMap(block);
@@ -407,7 +517,8 @@ export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRec
       "Recept utan titel";
 
     const rawIngredients = recipe.recipeIngredient ?? recipe.ingredients;
-    const ingredients = parseIngredientsField(rawIngredients, idMap);
+    const ingredients =
+      arlaIngredients ?? parseIngredientsField(rawIngredients, idMap);
     const instructions = parseInstructionsField(
       recipe.recipeInstructions ?? recipe.instructions
     );

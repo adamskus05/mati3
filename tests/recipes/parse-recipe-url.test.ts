@@ -25,8 +25,18 @@ describe("isIngredientHeaderLine", () => {
     expect(isIngredientHeaderLine("Till biffarna:")).toBe(true);
   });
 
+  it("detects Till-prefixed headers without colon", () => {
+    expect(isIngredientHeaderLine("Till tzatzikin")).toBe(true);
+  });
+
   it("does not treat quantified lines as headers", () => {
     expect(isIngredientHeaderLine("500 g köttfärs")).toBe(false);
+    expect(isIngredientHeaderLine("½ dl majsstärkelse")).toBe(false);
+    expect(isIngredientHeaderLine("1½ dl vetemjöl")).toBe(false);
+  });
+
+  it("does not treat single-word ingredients as headers", () => {
+    expect(isIngredientHeaderLine("salt")).toBe(false);
   });
 });
 
@@ -203,6 +213,27 @@ describe("parseRecipeFromHtml", () => {
       expect.objectContaining({ name: "köttfärs", section: "Till biffarna" }),
       expect.objectContaining({ name: "yoghurt", section: "Till tzatzikin" }),
     ]);
+  });
+
+  it("parses Arla ingredientGroups from page HTML", () => {
+    const html = `
+      <script type="application/ld+json">
+      {
+        "@type": "Recipe",
+        "name": "Orange chicken",
+        "recipeIngredient": ["500 g kyckling", "½ dl majsstärkelse"],
+        "recipeInstructions": []
+      }
+      </script>
+      ingredientGroups":[{"title":null,"ingredients":[{"formattedName":"Kyckling","formattedAmount":"500 g"}]},{"title":"Apelsins&#xE5;s:","ingredients":[{"formattedName":"Vitl&#xF6;k","formattedAmount":"3"},{"formattedName":"Apelsins&#xE5;s","formattedAmount":""}]},{"title":"Till servering:","ingredients":[{"formattedName":"Ris","formattedAmount":"3 dl"}]}]
+    `;
+    const result = parseRecipeFromHtml(html, "https://www.arla.se/recept/x/");
+    expect(result?.ingredients).toEqual([
+      expect.objectContaining({ name: "Kyckling", section: undefined }),
+      expect.objectContaining({ name: "Vitlök", section: "Apelsinsås" }),
+      expect.objectContaining({ name: "Ris", section: "Till servering" }),
+    ]);
+    expect(result?.ingredients.some((i) => i.name === "Apelsinsås")).toBe(false);
   });
 
   it("parses grouped ingredient objects with name and recipeIngredient", () => {
