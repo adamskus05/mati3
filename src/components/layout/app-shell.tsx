@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Tags,
@@ -37,7 +38,14 @@ export function AppShell({
 }) {
   useLockedSafeArea();
   const pathname = usePathname();
+  const router = useRouter();
   const items = navItems(householdId);
+
+  useEffect(() => {
+    for (const { href } of navItems(householdId)) {
+      router.prefetch(href);
+    }
+  }, [householdId, router]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -78,8 +86,9 @@ export function AppShell({
                 key={href}
                 href={href}
                 prefetch
+                scroll={false}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] leading-none transition-colors active:opacity-70",
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] leading-none active:opacity-70",
                   active
                     ? "text-primary"
                     : "text-muted-foreground"

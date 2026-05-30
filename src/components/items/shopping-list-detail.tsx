@@ -15,7 +15,6 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS, LAST_CATEGORY_KEY } from "@/lib/constants";
 import {
-  getNextSortOrder,
   getNextSortOrderFromItems,
   groupItemsByCategory,
 } from "@/lib/items/sort-order";
@@ -26,7 +25,12 @@ import { fetchListItems } from "@/lib/queries/items";
 import { fetchList } from "@/lib/queries/lists";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { enqueueMutation } from "@/lib/offline/mutation-queue";
-import type { Category, ItemPreset, ShoppingItemWithCompleter } from "@/lib/database.types";
+import type {
+  Category,
+  ItemPreset,
+  ShoppingItemWithCompleter,
+  ShoppingListWithCreator,
+} from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
@@ -58,7 +62,6 @@ export function ShoppingListDetail({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<ShoppingItemWithCompleter | null>(null);
-  const [shopperBusy, setShopperBusy] = useState(false);
 
   useListItemsRealtime(listId);
 
@@ -67,7 +70,7 @@ export function ShoppingListDetail({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const { data: list, refetch: refetchList } = useQuery({
+  const { data: list } = useQuery({
     queryKey: QUERY_KEYS.list(listId),
     queryFn: () => fetchList(createClient(), listId),
   });
@@ -190,35 +193,21 @@ export function ShoppingListDetail({
       return;
     }
 
-    void (async () => {
-      const supabase = createClient();
-      let finalOrder = sort_order;
-      try {
-        finalOrder = await getNextSortOrder(
-          supabase,
-          listId,
-          item.category_id,
-          completed
-        );
-      } catch {
-        /* keep local */
-      }
-
-      const { error } = await supabase
-        .from("shopping_items")
-        .update({
-          completed,
-          sort_order: finalOrder,
-          completed_by,
-          completed_at,
-        })
-        .eq("id", item.id);
-
-      if (error) {
-        toast.error(error.message);
-        queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
-      }
-    })();
+    void createClient()
+      .from("shopping_items")
+      .update({
+        completed,
+        sort_order,
+        completed_by,
+        completed_at,
+      })
+      .eq("id", item.id)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        }
+      });
   }
 
   function deleteItem(id: string) {
@@ -419,24 +408,46 @@ export function ShoppingListDetail({
     }
   }
 
-  async function startShopping() {
-    setShopperBusy(true);
-    const { error } = await createClient().rpc("set_list_shopper", {
-      p_list_id: listId,
+  function patchListShopper(shopperId: string | null, startedAt: string | null) {
+    const previous = queryClient.getQueryData<ShoppingListWithCreator>(
+      QUERY_KEYS.list(listId)
+    );
+    if (!previous) return undefined;
+    queryClient.setQueryData<ShoppingListWithCreator>(QUERY_KEYS.list(listId), {
+      ...previous,
+      shopper_id: shopperId,
+      shopper_started_at: startedAt,
+      shopper: shopperId ? previous.shopper : null,
     });
-    setShopperBusy(false);
-    if (error) toast.error(error.message);
-    else void refetchList();
+    return previous;
   }
 
-  async function stopShopping() {
-    setShopperBusy(true);
-    const { error } = await createClient().rpc("clear_list_shopper", {
-      p_list_id: listId,
-    });
-    setShopperBusy(false);
-    if (error) toast.error(error.message);
-    else void refetchList();
+  function startShopping() {
+    const previous = patchListShopper(userId, new Date().toISOString());
+    void createClient()
+      .rpc("set_list_shopper", { p_list_id: listId })
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          if (previous) {
+            queryClient.setQueryData(QUERY_KEYS.list(listId), previous);
+          }
+        }
+      });
+  }
+
+  function stopShopping() {
+    const previous = patchListShopper(null, null);
+    void createClient()
+      .rpc("clear_list_shopper", { p_list_id: listId })
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          if (previous) {
+            queryClient.setQueryData(QUERY_KEYS.list(listId), previous);
+          }
+        }
+      });
   }
 
   if (showQueryLoading(isLoading, items)) {
@@ -474,7 +485,6 @@ export function ShoppingListDetail({
           userId={userId}
           onStart={startShopping}
           onStop={stopShopping}
-          busy={shopperBusy}
         />
       )}
 

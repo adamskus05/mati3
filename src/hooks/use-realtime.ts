@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS } from "@/lib/constants";
 import { debouncedInvalidate } from "@/lib/query/debounced-invalidate";
+import { applyShoppingItemRealtime } from "@/lib/query/realtime-merge";
 
 export function useHouseholdRealtime(householdId: string) {
   const queryClient = useQueryClient();
@@ -97,8 +98,17 @@ export function useListItemsRealtime(listId: string) {
           table: "shopping_items",
           filter: `shopping_list_id=eq.${listId}`,
         },
-        () => {
-          debouncedInvalidate(queryClient, QUERY_KEYS.items(listId));
+        (payload) => {
+          applyShoppingItemRealtime(
+            queryClient,
+            listId,
+            QUERY_KEYS.items(listId),
+            payload as {
+              eventType: "INSERT" | "UPDATE" | "DELETE";
+              new: Record<string, unknown> | null;
+              old: Record<string, unknown> | null;
+            }
+          );
         }
       )
       .subscribe();

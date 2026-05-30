@@ -18,13 +18,11 @@ export function ListShopperBar({
   userId,
   onStart,
   onStop,
-  busy,
 }: {
   list: ShoppingListWithCreator | null | undefined;
   userId: string;
   onStart: () => void;
   onStop: () => void;
-  busy?: boolean;
 }) {
   if (!list) return null;
 
@@ -40,7 +38,6 @@ export function ListShopperBar({
         size="sm"
         className="w-full gap-2 rounded-xl"
         onClick={onStart}
-        disabled={busy}
       >
         <ShoppingCart className="h-4 w-4" />
         Jag handlar
@@ -55,7 +52,7 @@ export function ListShopperBar({
         {isMe ? "Du handlar" : `${name} handlar`}
       </Badge>
       {isMe && (
-        <Button type="button" variant="ghost" size="sm" onClick={onStop} disabled={busy}>
+        <Button type="button" variant="ghost" size="sm" onClick={onStop}>
           Sluta handla
         </Button>
       )}
