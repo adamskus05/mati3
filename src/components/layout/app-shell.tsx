@@ -69,7 +69,7 @@ export function AppShell({
   }, [householdId, router, queryClient]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-background">
       <OfflineBanner />
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between mati-page-x py-3">
@@ -129,6 +129,7 @@ export function AppShell({
             );
           })}
         </div>
+        <div className="app-bottom-nav__inset" aria-hidden />
       </nav>
     </div>
   );
