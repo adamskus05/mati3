@@ -21,6 +21,7 @@ import { OfflineBanner } from "@/components/layout/offline-banner";
 import { HouseholdSwitcher } from "@/components/household/household-switcher";
 import { useLockedSafeArea } from "@/hooks/use-locked-safe-area";
 import { prefetchHouseholdTabs } from "@/lib/query/prefetch-household-tabs";
+import { isStandalonePwa } from "@/lib/pwa/standalone";
 
 const navItems = (householdId: string) => [
   { href: `/h/${householdId}`, label: "Listor", icon: Home },
@@ -56,9 +57,11 @@ export function AppShell({
       router.prefetch(href);
     }
 
+    if (isStandalonePwa()) return;
+
     const runPrefetch = () => prefetchHouseholdTabs(queryClient, householdId);
     if (typeof requestIdleCallback !== "undefined") {
-      const id = requestIdleCallback(runPrefetch, { timeout: 2000 });
+      const id = requestIdleCallback(runPrefetch, { timeout: 5000 });
       return () => cancelIdleCallback(id);
     }
     const t = window.setTimeout(runPrefetch, 0);

@@ -12,6 +12,7 @@ const persister = createAsyncStoragePersister({
     setItem: async (key, value) => set(key, value),
     removeItem: async (key) => del(key),
   },
+  throttleTime: 2000,
 });
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
@@ -44,7 +45,6 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
               "categories",
               "lists",
               "listHistory",
-              "items",
               "list",
               "households",
               "members",

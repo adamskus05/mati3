@@ -49,6 +49,7 @@ import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { ListSortMenu } from "@/components/lists/list-sort-menu";
 import { cn } from "@/lib/utils";
 import { prefetchListDetail } from "@/lib/query/prefetch-list-detail";
+import { isStandalonePwa } from "@/lib/pwa/standalone";
 
 function SortableListRow({
   list,
@@ -186,6 +187,7 @@ export function ListsView({ householdId }: { householdId: string }) {
   }
 
   useEffect(() => {
+    if (isStandalonePwa()) return;
     for (const list of sortedLists.slice(0, 4)) {
       prefetchListDetail(queryClient, householdId, list.id);
     }

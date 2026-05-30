@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
-import { defaultCache } from "@serwist/next/worker";
+import { defaultCache, PAGES_CACHE_NAME } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
+import { Serwist, NetworkOnly } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -11,59 +11,73 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-const pageCachePlugins = [
-  new ExpirationPlugin({
-    maxEntries: 64,
-    maxAgeSeconds: 24 * 60 * 60,
-  }),
+/** Dynamic data and pages — always network (React Query + HydrationBoundary own caching). */
+const networkOnlyRoutes = [
+  {
+    matcher: ({ url }: { url: URL }) => url.hostname.endsWith(".supabase.co"),
+    handler: new NetworkOnly(),
+  },
+  {
+    matcher: ({
+      request,
+      url: { pathname },
+      sameOrigin,
+    }: {
+      request: Request;
+      url: URL;
+      sameOrigin: boolean;
+    }) =>
+      sameOrigin &&
+      !pathname.startsWith("/api/") &&
+      request.headers.get("RSC") === "1",
+    handler: new NetworkOnly(),
+  },
+  {
+    matcher: ({
+      request,
+      url: { pathname },
+      sameOrigin,
+    }: {
+      request: Request;
+      url: URL;
+      sameOrigin: boolean;
+    }) =>
+      sameOrigin &&
+      !pathname.startsWith("/api/") &&
+      (request.mode === "navigate" ||
+        request.headers.get("Accept")?.includes("text/html") === true),
+    handler: new NetworkOnly(),
+  },
+  {
+    matcher: ({
+      url: { pathname },
+      sameOrigin,
+    }: {
+      url: URL;
+      sameOrigin: boolean;
+    }) => sameOrigin && pathname.startsWith("/h/"),
+    handler: new NetworkOnly(),
+  },
 ];
 
-/** Serve cached RSC/HTML immediately; revalidate in background (snappier PWA nav). */
-const fastPageCache = [
-  {
-    matcher: ({
-      request,
-      url: { pathname },
-      sameOrigin,
-    }: {
-      request: Request;
-      url: URL;
-      sameOrigin: boolean;
-    }) =>
-      request.headers.get("RSC") === "1" &&
-      sameOrigin &&
-      !pathname.startsWith("/api/"),
-    handler: new StaleWhileRevalidate({
-      cacheName: "mati-rsc",
-      plugins: pageCachePlugins,
-    }),
-  },
-  {
-    matcher: ({
-      request,
-      url: { pathname },
-      sameOrigin,
-    }: {
-      request: Request;
-      url: URL;
-      sameOrigin: boolean;
-    }) =>
-      request.headers.get("Content-Type")?.includes("text/html") &&
-      sameOrigin &&
-      !pathname.startsWith("/api/"),
-    handler: new StaleWhileRevalidate({
-      cacheName: "mati-html",
-      plugins: pageCachePlugins,
-    }),
-  },
-];
+const skipPageCacheNames = new Set<string>([
+  PAGES_CACHE_NAME.rscPrefetch,
+  PAGES_CACHE_NAME.rsc,
+  PAGES_CACHE_NAME.html,
+  "others",
+]);
+
+const staticDefaultCache = defaultCache.filter((route) => {
+  const cacheName = (route.handler as { cacheName?: string }).cacheName;
+  return !cacheName || !skipPageCacheNames.has(cacheName);
+});
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: [...fastPageCache, ...defaultCache],
+  navigationPreload: false,
+  runtimeCaching: [...networkOnlyRoutes, ...staticDefaultCache],
 });
 
 serwist.addEventListeners();
