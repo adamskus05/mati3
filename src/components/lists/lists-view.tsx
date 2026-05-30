@@ -69,53 +69,66 @@ function SortableListRow({
     useSortable({ id: list.id, disabled: !dragEnabled });
 
   return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
-      <Card
-        className={cn(
-          "rounded-2xl overflow-hidden",
-          isDragging && "shadow-lg opacity-90"
-        )}
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-center gap-0.5 overflow-hidden rounded-xl border border-border/60 bg-card",
+        isDragging && "z-10 shadow-md ring-1 ring-border"
+      )}
+    >
+      {dragEnabled && (
+        <button
+          type="button"
+          className="touch-none shrink-0 self-stretch px-1.5 text-muted-foreground active:opacity-60"
+          aria-label="Flytta lista"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <Link
+        href={`/h/${householdId}/lists/${list.id}`}
+        prefetch
+        onPointerEnter={onWarm}
+        onTouchStart={onWarm}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 pl-2.5 pr-1 transition-colors hover:bg-muted/40 active:bg-muted/60"
       >
-        <CardContent className="flex items-center gap-2 p-0">
-          {dragEnabled && (
-            <button
-              type="button"
-              className="touch-none pl-2 text-muted-foreground"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="h-4 w-4" />
-            </button>
-          )}
-          <Link
-            href={`/h/${householdId}/lists/${list.id}`}
-            prefetch
-            onPointerEnter={onWarm}
-            onTouchStart={onWarm}
-            className="flex flex-1 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/50 active:bg-muted"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{list.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {profileDisplayName(list.creator)} ·{" "}
-                {new Date(list.updated_at).toLocaleDateString("sv-SE", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-          </Link>
-          <div className="flex pr-2 gap-1">
-            <Button variant="ghost" size="icon" onClick={onEdit}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium leading-tight">{list.name}</p>
+          <p className="truncate text-[11px] leading-tight text-muted-foreground">
+            {profileDisplayName(list.creator)} ·{" "}
+            {new Date(list.updated_at).toLocaleDateString("sv-SE", {
+              day: "numeric",
+              month: "short",
+            })}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/80" />
+      </Link>
+      <div className="flex shrink-0 pr-0.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="text-muted-foreground"
+          onClick={onEdit}
+          aria-label={`Redigera ${list.name}`}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="text-destructive hover:text-destructive"
+          onClick={onDelete}
+          aria-label={`Ta bort ${list.name}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
     </li>
   );
 }
@@ -410,7 +423,7 @@ export function ListsView({ householdId }: { householdId: string }) {
             items={sortedLists.map((l) => l.id)}
             strategy={verticalListSortingStrategy}
           >
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {sortedLists.map((list) => (
                 <SortableListRow
                   key={list.id}
