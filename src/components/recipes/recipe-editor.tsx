@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -12,7 +13,7 @@ import {
   type RecipeUpsertPayload,
 } from "@/lib/queries/recipes";
 import type { RecipeIngredientInput, RecipeWithIngredients } from "@/lib/database.types";
-import { UNITS } from "@/lib/constants";
+import { QUERY_KEYS, UNITS } from "@/lib/constants";
 import {
   formatInstructionSteps,
   groupIngredientsBySection,
@@ -48,6 +49,7 @@ export function RecipeEditor({
   recipe?: RecipeWithIngredients;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const online = useOnline();
   const isEdit = Boolean(recipe);
 
@@ -218,6 +220,9 @@ export function RecipeEditor({
         toast.success("Recept sparat");
         router.push(`/h/${householdId}/recipes/${created.id}`);
       }
+      void queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.recipes(householdId),
+      });
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Kunde inte spara");

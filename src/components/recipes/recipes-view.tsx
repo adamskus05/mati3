@@ -34,8 +34,8 @@ export function RecipesView({
     queryKey: QUERY_KEYS.recipes(householdId),
     queryFn: () => fetchRecipes(createClient(), householdId),
     initialData: initialRecipes,
-    staleTime: 60_000,
-    refetchOnMount: !initialRecipes,
+    staleTime: 30_000,
+    refetchOnMount: "always",
   });
 
   const filtered = useMemo(() => {
