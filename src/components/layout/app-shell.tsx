@@ -129,7 +129,6 @@ export function AppShell({
             );
           })}
         </div>
-        <div className="app-bottom-nav__inset" aria-hidden />
       </nav>
     </div>
   );

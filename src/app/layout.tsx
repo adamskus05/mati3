@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
+import { safeAreaBottomBootScript } from "@/lib/pwa/safe-area-bottom";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { MatiThemeApplier } from "@/components/theme/mati-theme-applier";
@@ -51,7 +52,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var k='mati:colorTheme',v=localStorage.getItem(k),a=['sage','berry','ocean','sunset','forest','lavender'];document.documentElement.setAttribute('data-mati-theme',a.includes(v)?v:'sage')}catch(e){}})();(function(){try{var r=document.documentElement,s=window.matchMedia('(display-mode: standalone)').matches,k='mati:safe-bottom-px',n=0;try{var st=sessionStorage.getItem(k);if(st!=null)n=parseInt(st,10)}catch(e){}if(!(n>=0)||isNaN(n))n=s?34:0;r.style.setProperty('--mati-safe-bottom-locked',n+'px');try{sessionStorage.setItem(k,String(n))}catch(e){}}catch(e){}})();`,
+            __html: `(function(){try{var k='mati:colorTheme',v=localStorage.getItem(k),a=['sage','berry','ocean','sunset','forest','lavender'];document.documentElement.setAttribute('data-mati-theme',a.includes(v)?v:'sage')}catch(e){}})();${safeAreaBottomBootScript()}`,
           }}
         />
       </head>

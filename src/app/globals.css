@@ -148,7 +148,7 @@
 }
 
 :root {
-  --mati-nav-bar-height: 3.5rem;
+  --mati-nav-bar-height: 3rem;
   /* Set early via inline script; never use live env() here (iOS shrinks on scroll). */
   --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
   --mati-bottom-nav-total: calc(var(--mati-nav-bar-height) + var(--mati-safe-bottom));
@@ -175,19 +175,16 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Fixed-height bottom tab bar — grid rows never reflow when iOS env() flickers */
+/* Tab bar flush to bottom; safe inset is padding below icons (content-box = stable height) */
 .app-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 40;
-  display: grid;
-  grid-template-rows: var(--mati-nav-bar-height) var(--mati-safe-bottom);
-  height: var(--mati-bottom-nav-total);
-  min-height: var(--mati-bottom-nav-total);
-  max-height: var(--mati-bottom-nav-total);
-  box-sizing: border-box;
+  box-sizing: content-box;
+  height: var(--mati-nav-bar-height);
+  padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
   contain: layout style;
@@ -196,21 +193,11 @@
 }
 
 .app-bottom-nav__bar {
-  grid-row: 1;
   height: var(--mati-nav-bar-height);
   min-height: var(--mati-nav-bar-height);
   max-height: var(--mati-nav-bar-height);
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.app-bottom-nav__inset {
-  grid-row: 2;
-  height: var(--mati-safe-bottom);
-  min-height: var(--mati-safe-bottom);
-  max-height: var(--mati-safe-bottom);
-  background-color: var(--background);
-  pointer-events: none;
 }
 
 @media (max-width: 380px) {
