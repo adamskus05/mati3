@@ -148,9 +148,9 @@
 }
 
 :root {
-  --mati-nav-bar-height: 2.5rem;
-  --mati-safe-bottom: 0px;
-  --mati-bottom-nav-total: var(--mati-nav-bar-height);
+  --mati-nav-bar-content: 3rem;
+  --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
+  --mati-bottom-nav-total: calc(var(--mati-nav-bar-content) + var(--mati-safe-bottom));
   /* Compact touch scale — ~40px targets, readable type */
   --mati-touch: 2.5rem;
   --mati-text-input: 1rem;
@@ -174,17 +174,15 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Tab bar pinned to the physical bottom — no extra safe-area band underneath */
+/* Tab bar: content row + locked safe-area padding below (home indicator) */
 .app-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 40;
-  height: var(--mati-nav-bar-height);
-  min-height: var(--mati-nav-bar-height);
-  max-height: var(--mati-nav-bar-height);
   box-sizing: border-box;
+  padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
   contain: layout style;
@@ -193,10 +191,10 @@
 }
 
 .app-bottom-nav__bar {
-  height: 100%;
-  min-height: 0;
+  height: var(--mati-nav-bar-content);
+  min-height: var(--mati-nav-bar-content);
+  max-height: var(--mati-nav-bar-content);
   box-sizing: border-box;
-  align-items: flex-end;
   overflow: hidden;
 }
 
