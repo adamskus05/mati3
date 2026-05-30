@@ -588,7 +588,7 @@ export function ShoppingListDetail({
         {itemsPending ? (
           <ListItemsSkeleton compact={readOnly} />
         ) : (
-          <div className={readOnly ? "space-y-2" : "space-y-3"}>
+          <div className={readOnly ? "space-y-2" : "space-y-2"}>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}

@@ -58,8 +58,7 @@ function ItemRowInner({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 rounded-xl border border-transparent bg-card px-2",
-        readOnly ? "min-h-10 py-1.5" : "min-h-[var(--mati-touch)] py-2",
+        "flex items-center gap-1.5 rounded-lg border border-transparent bg-card px-1.5 py-1",
         item.completed && "opacity-50",
         isDragging && "z-10 border-border shadow-lg",
         selected && "border-primary/40 bg-primary/5"
@@ -79,14 +78,14 @@ function ItemRowInner({
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3.5 w-3.5" />
         </button>
       )}
       <Checkbox
         checked={item.completed}
         onCheckedChange={onToggle}
         disabled={readOnly || selectMode}
-        className="rounded-full"
+        className="size-3.5 rounded-full"
       />
       <button
         type="button"
@@ -96,34 +95,35 @@ function ItemRowInner({
       >
         <span
           className={cn(
-            "block font-medium leading-tight",
-            readOnly ? "text-sm" : "text-[length:var(--mati-text-body)]",
+            "block text-sm font-medium leading-tight",
             item.completed && "text-muted-foreground line-through"
           )}
         >
           {item.name}
         </span>
         {qty && (
-          <span className="text-xs text-muted-foreground">{qty}</span>
+          <span className="text-[11px] leading-tight text-muted-foreground">
+            {qty}
+          </span>
         )}
         {item.notes && (
-          <span className="block text-xs italic text-muted-foreground">
+          <span className="block text-[11px] leading-tight italic text-muted-foreground">
             {item.notes}
           </span>
         )}
         {completedBy && (
-          <span className="block text-[10px] text-muted-foreground">
+          <span className="block text-[10px] leading-tight text-muted-foreground">
             Av {completedBy}
           </span>
         )}
       </button>
       {!readOnly && !selectMode && (
         <div className="flex shrink-0">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="icon-xs" onClick={onEdit}>
+            <Pencil className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          <Button variant="ghost" size="icon-xs" onClick={onDelete}>
+            <Trash2 className="h-3 w-3 text-destructive" />
           </Button>
         </div>
       )}

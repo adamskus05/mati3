@@ -36,7 +36,7 @@ export function CategorySection({
     <section
       className={cn(
         "mati-category-section",
-        readOnly ? "space-y-1" : "space-y-2"
+        readOnly ? "space-y-1" : "space-y-1.5"
       )}
     >
       <div className="flex items-center gap-1.5">
