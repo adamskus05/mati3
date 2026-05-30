@@ -68,4 +68,31 @@ describe("parseRecipeFromHtml", () => {
     const html = "<html><body>Hej</body></html>";
     expect(parseRecipeFromHtml(html, "https://example.com")).toBeNull();
   });
+
+  it("finds Recipe in top-level JSON-LD array (Arla-style type field)", () => {
+    const html = `
+      <script type="application/ld+json">
+      [
+        {"@type":"Organization","name":"Arla"},
+        {
+          "@context":"https://schema.org/",
+          "type":"Recipe",
+          "name":"Kycklinggryta",
+          "recipeIngredient":["500 g kyckling","2 msk curry"],
+          "recipeInstructions":[{
+            "type":"HowToSection",
+            "itemListElement":[
+              {"type":"HowToStep","text":"Stek kycklingen."},
+              {"type":"HowToStep","text":"Servera."}
+            ]
+          }]
+        }
+      ]
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html, "https://www.arla.se/recept/x/");
+    expect(result?.title).toBe("Kycklinggryta");
+    expect(result?.ingredients).toHaveLength(2);
+    expect(result?.instructions).toEqual(["Stek kycklingen.", "Servera."]);
+  });
 });

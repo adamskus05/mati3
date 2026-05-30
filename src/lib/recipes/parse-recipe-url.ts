@@ -15,6 +15,13 @@ export type ParsedRecipe = {
 const UNITS =
   /^(st|kg|g|l|dl|cl|ml|msk|tsk|krm|paket|förp|burk|näve|bit|bitar|förpackning)\b/i;
 
+const INSTRUCTION_TYPES = new Set([
+  "HowToStep",
+  "HowToDirection",
+  "HowToSection",
+  "HowToTip",
+]);
+
 /** Parse a free-text ingredient line (Swedish-friendly). */
 export function parseIngredientLine(line: string): ParsedIngredient {
   const raw = line.trim();
@@ -49,20 +56,44 @@ export function parseIngredientLine(line: string): ParsedIngredient {
   return { name, quantity, unit, raw };
 }
 
-function isRecipeType(type: unknown): boolean {
-  if (typeof type === "string") {
-    return type === "Recipe" || type.endsWith("/Recipe");
-  }
-  if (Array.isArray(type)) {
-    return type.some((t) => isRecipeType(t));
-  }
-  return false;
+function schemaTypes(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.filter((t): t is string => typeof t === "string");
+  return [];
+}
+
+function nodeTypes(obj: Record<string, unknown>): string[] {
+  const fromAt = schemaTypes(obj["@type"]);
+  const fromType = schemaTypes(obj["type"]);
+  return [...fromAt, ...fromType];
+}
+
+function isRecipeNode(obj: Record<string, unknown>): boolean {
+  return nodeTypes(obj).some(
+    (t) => t === "Recipe" || t.endsWith("/Recipe") || t.endsWith("Recipe")
+  );
+}
+
+function isInstructionContainer(obj: Record<string, unknown>): boolean {
+  return nodeTypes(obj).some((t) => INSTRUCTION_TYPES.has(t.replace(/^.*\//, "")));
 }
 
 function findRecipeNode(data: unknown): Record<string, unknown> | null {
-  if (!data || typeof data !== "object") return null;
+  if (!data) return null;
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findRecipeNode(item);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
-  if (isRecipeType(obj["@type"])) return obj;
+
+  if (isRecipeNode(obj)) return obj;
+
   const graph = obj["@graph"];
   if (Array.isArray(graph)) {
     for (const node of graph) {
@@ -70,6 +101,14 @@ function findRecipeNode(data: unknown): Record<string, unknown> | null {
       if (found) return found;
     }
   }
+
+  for (const value of Object.values(obj)) {
+    if (value && typeof value === "object") {
+      const found = findRecipeNode(value);
+      if (found) return found;
+    }
+  }
+
   return null;
 }
 
@@ -91,10 +130,17 @@ function extractJsonLdBlocks(html: string): unknown[] {
 
 function normalizeImage(image: unknown): string | undefined {
   if (typeof image === "string") return image;
-  if (Array.isArray(image) && typeof image[0] === "string") return image[0];
-  if (image && typeof image === "object" && "url" in image) {
-    const url = (image as { url?: string }).url;
-    if (typeof url === "string") return url;
+  if (Array.isArray(image)) {
+    for (const item of image) {
+      const url = normalizeImage(item);
+      if (url) return url;
+    }
+    return undefined;
+  }
+  if (image && typeof image === "object") {
+    const o = image as Record<string, unknown>;
+    if (typeof o.url === "string") return o.url;
+    if (typeof o.contentUrl === "string") return o.contentUrl;
   }
   return undefined;
 }
@@ -103,7 +149,7 @@ function parseIngredientsField(field: unknown): ParsedIngredient[] {
   if (!field) return [];
   const lines: string[] = [];
   if (typeof field === "string") {
-    lines.push(field);
+    lines.push(...field.split(/\n+/));
   } else if (Array.isArray(field)) {
     for (const item of field) {
       if (typeof item === "string") lines.push(item);
@@ -130,47 +176,82 @@ function parseIngredientsField(field: unknown): ParsedIngredient[] {
     .filter((i) => i.name);
 }
 
-function parseInstructionsField(field: unknown): string[] {
-  if (!field) return [];
-  if (typeof field === "string") {
-    return field
-      .split(/\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  if (!Array.isArray(field)) return [];
+function collectInstructionSteps(field: unknown, out: string[]): void {
+  if (!field) return;
 
-  const steps: string[] = [];
-  for (const item of field) {
-    if (typeof item === "string") {
-      steps.push(item.trim());
-    } else if (item && typeof item === "object") {
-      const o = item as Record<string, unknown>;
-      if (typeof o.text === "string") steps.push(o.text.trim());
-      else if (typeof o.name === "string") steps.push(o.name.trim());
-      else if (Array.isArray(o.itemListElement)) {
-        for (const sub of o.itemListElement) {
-          if (typeof sub === "string") steps.push(sub.trim());
-          else if (sub && typeof sub === "object" && typeof (sub as { text?: string }).text === "string") {
-            steps.push((sub as { text: string }).text.trim());
-          }
+  if (typeof field === "string") {
+    const trimmed = field.trim();
+    if (trimmed) {
+      if (trimmed.includes("\n")) {
+        for (const line of trimmed.split(/\n+/)) {
+          const t = line.trim();
+          if (t) out.push(t);
         }
+      } else {
+        out.push(trimmed);
       }
     }
+    return;
   }
-  return steps.filter(Boolean);
+
+  if (!Array.isArray(field)) {
+    if (typeof field === "object" && field !== null) {
+      collectInstructionStepsFromObject(field as Record<string, unknown>, out);
+    }
+    return;
+  }
+
+  for (const item of field) {
+    if (typeof item === "string") {
+      const t = item.trim();
+      if (t) out.push(t);
+    } else if (item && typeof item === "object") {
+      collectInstructionStepsFromObject(item as Record<string, unknown>, out);
+    }
+  }
 }
 
-/** Extract recipe from HTML using schema.org JSON-LD. */
-export function parseRecipeFromHtml(html: string, sourceUrl: string): ParsedRecipe | null {
+function collectInstructionStepsFromObject(
+  o: Record<string, unknown>,
+  out: string[]
+): void {
+  if (typeof o.text === "string" && o.text.trim()) {
+    out.push(o.text.trim());
+    return;
+  }
+  if (typeof o.name === "string" && o.name.trim() && isInstructionContainer(o)) {
+    // Section title only — skip unless no text
+    return;
+  }
+  if (typeof o.name === "string" && o.name.trim() && !isInstructionContainer(o)) {
+    out.push(o.name.trim());
+    return;
+  }
+
+  const nested =
+    o.itemListElement ?? o.step ?? o.steps ?? o.instruction ?? o.instructions;
+  if (nested) collectInstructionSteps(nested, out);
+}
+
+function parseInstructionsField(field: unknown): string[] {
+  const steps: string[] = [];
+  collectInstructionSteps(field, steps);
+  return steps
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** Extract recipe from HTML using schema.org JSON-LD (and common variants). */
+export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRecipe | null {
   const blocks = extractJsonLdBlocks(html);
+
   for (const block of blocks) {
     const recipe = findRecipeNode(block);
     if (!recipe) continue;
 
     const title =
-      (typeof recipe.name === "string" && recipe.name) ||
-      (typeof recipe.headline === "string" && recipe.headline) ||
+      (typeof recipe.name === "string" && recipe.name.trim()) ||
+      (typeof recipe.headline === "string" && recipe.headline.trim()) ||
       "Recept utan titel";
 
     const ingredients = parseIngredientsField(
@@ -183,11 +264,10 @@ export function parseRecipeFromHtml(html: string, sourceUrl: string): ParsedReci
     if (ingredients.length === 0 && instructions.length === 0) continue;
 
     return {
-      title,
+      title: title.trim(),
       imageUrl: normalizeImage(recipe.image),
       ingredients,
       instructions,
-      ...(sourceUrl ? {} : {}),
     };
   }
   return null;

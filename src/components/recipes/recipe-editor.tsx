@@ -13,6 +13,10 @@ import {
 } from "@/lib/queries/recipes";
 import type { RecipeIngredientInput, RecipeWithIngredients } from "@/lib/database.types";
 import { UNITS } from "@/lib/constants";
+import {
+  formatInstructionSteps,
+  parseInstructionLines,
+} from "@/lib/recipes/instruction-format";
 import { useOnline } from "@/hooks/use-online";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +59,9 @@ export function RecipeEditor({
       : [emptyIngredient()]
   );
   const [instructionsText, setInstructionsText] = useState(() =>
-    recipe ? instructionsFromJson(recipe.instructions).join("\n") : ""
+    recipe
+      ? formatInstructionSteps(instructionsFromJson(recipe.instructions))
+      : ""
   );
   const [saving, setSaving] = useState(false);
 
@@ -73,7 +79,9 @@ export function RecipeEditor({
         notes: i.notes,
       }))
     );
-    setInstructionsText(instructionsFromJson(recipe.instructions).join("\n"));
+    setInstructionsText(
+      formatInstructionSteps(instructionsFromJson(recipe.instructions))
+    );
   }, [recipe]);
 
   async function handleImportUrl() {
@@ -119,7 +127,7 @@ export function RecipeEditor({
       );
 
       const steps = (data.instructions ?? []) as string[];
-      setInstructionsText(steps.join("\n"));
+      setInstructionsText(formatInstructionSteps(steps));
       toast.success("Recept hämtat – justera och spara");
     } catch {
       toast.error("Kunde inte hämta recept");
@@ -130,10 +138,7 @@ export function RecipeEditor({
   }
 
   function buildPayload(): RecipeUpsertPayload {
-    const instructions = instructionsText
-      .split(/\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const instructions = parseInstructionLines(instructionsText);
 
     return {
       title: title.trim() || "Namnlöst recept",
@@ -349,15 +354,18 @@ export function RecipeEditor({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="instructions">Gör så här (ett steg per rad)</Label>
+          <Label htmlFor="instructions">Gör så här</Label>
           <Textarea
             id="instructions"
             value={instructionsText}
             onChange={(e) => setInstructionsText(e.target.value)}
-            rows={6}
-            className="resize-y rounded-xl"
-            placeholder={"1. Förbered…\n2. Blanda…"}
+            rows={8}
+            className="resize-y rounded-xl font-mono text-sm leading-relaxed"
+            placeholder={"1. Förbered ingredienserna\n2. Blanda och laga\n3. Servera"}
           />
+          <p className="text-xs text-muted-foreground">
+            Ett numrerat steg per rad (1. 2. 3. …)
+          </p>
         </div>
 
         <div className="flex gap-2">
