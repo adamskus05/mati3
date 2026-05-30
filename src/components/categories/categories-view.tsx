@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchCategories } from "@/lib/queries/categories";
 import { QUERY_KEYS, CATEGORY_COLORS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
@@ -38,7 +39,7 @@ import {
 import { DeleteCategoryDialog } from "@/components/categories/delete-category-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { showQueryLoading } from "@/lib/query/loading";
+import { CategoriesSkeleton } from "@/components/categories/categories-skeleton";
 
 function SortableCategory({
   category,
@@ -163,7 +164,13 @@ function CategoryForm({
   );
 }
 
-export function CategoriesView({ householdId }: { householdId: string }) {
+export function CategoriesView({
+  householdId,
+  initialCategories,
+}: {
+  householdId: string;
+  initialCategories?: Category[];
+}) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -181,15 +188,13 @@ export function CategoriesView({ householdId }: { householdId: string }) {
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.categories(householdId),
-    queryFn: async () => {
-      const { data } = await createClient()
-        .from("categories")
-        .select("*")
-        .eq("household_id", householdId)
-        .order("sort_order");
-      return data ?? [];
-    },
+    queryFn: () => fetchCategories(createClient(), householdId),
+    initialData: initialCategories,
+    staleTime: 60_000,
+    refetchOnMount: !initialCategories,
   });
+
+  const categoriesPending = isLoading && categories.length === 0;
 
   async function saveCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -263,10 +268,6 @@ export function CategoriesView({ householdId }: { householdId: string }) {
     setOpen(true);
   }
 
-  if (showQueryLoading(isLoading, categories)) {
-    return <p className="text-sm text-muted-foreground">Laddar…</p>;
-  }
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -301,7 +302,9 @@ export function CategoriesView({ householdId }: { householdId: string }) {
         </Dialog>
       </div>
 
-      {categories.length === 0 ? (
+      {categoriesPending ? (
+        <CategoriesSkeleton />
+      ) : categories.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           Inga kategorier ännu
         </p>

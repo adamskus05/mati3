@@ -40,9 +40,15 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
           shouldDehydrateQuery: (query) =>
             query.state.status === "success" &&
             typeof query.queryKey[0] === "string" &&
-            ["categories", "lists", "items", "households", "recipes"].includes(
-              query.queryKey[0]
-            ),
+            [
+              "categories",
+              "lists",
+              "listHistory",
+              "items",
+              "households",
+              "members",
+              "recipes",
+            ].includes(query.queryKey[0]),
         },
       }}
     >

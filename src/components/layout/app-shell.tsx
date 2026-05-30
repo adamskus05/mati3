@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Home,
   Tags,
@@ -19,6 +20,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { OfflineBanner } from "@/components/layout/offline-banner";
 import { HouseholdSwitcher } from "@/components/household/household-switcher";
 import { useLockedSafeArea } from "@/hooks/use-locked-safe-area";
+import { prefetchHouseholdTabs } from "@/lib/query/prefetch-household-tabs";
 
 const navItems = (householdId: string) => [
   { href: `/h/${householdId}`, label: "Listor", icon: Home },
@@ -41,13 +43,15 @@ export function AppShell({
   useLockedSafeArea();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const items = navItems(householdId);
 
   useEffect(() => {
     for (const { href } of navItems(householdId)) {
       router.prefetch(href);
     }
-  }, [householdId, router]);
+    prefetchHouseholdTabs(queryClient, householdId);
+  }, [householdId, router, queryClient]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -90,6 +94,8 @@ export function AppShell({
                 href={href}
                 prefetch
                 scroll={false}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] leading-none active:opacity-70",
                   active
@@ -98,7 +104,9 @@ export function AppShell({
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                <span className="max-w-full truncate px-0.5">{label}</span>
+                <span className="app-bottom-nav__label max-w-full truncate px-0.5">
+                  {label}
+                </span>
               </Link>
             );
           })}

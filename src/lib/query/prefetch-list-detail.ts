@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS } from "@/lib/constants";
+import { fetchCategories } from "@/lib/queries/categories";
 import { fetchList } from "@/lib/queries/lists";
 import { fetchListItems } from "@/lib/queries/items";
 
@@ -25,14 +26,7 @@ export function prefetchListDetail(
 
   void queryClient.prefetchQuery({
     queryKey: QUERY_KEYS.categories(householdId),
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("household_id", householdId)
-        .order("sort_order");
-      return data ?? [];
-    },
+    queryFn: () => fetchCategories(supabase, householdId),
     staleTime: 60_000,
   });
 

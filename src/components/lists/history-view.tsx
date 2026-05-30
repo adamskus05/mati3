@@ -8,20 +8,28 @@ import { fetchArchivedLists } from "@/lib/queries/lists";
 import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { Card, CardContent } from "@/components/ui/card";
-import { showQueryLoading } from "@/lib/query/loading";
+import { ListsSkeleton } from "@/components/lists/lists-skeleton";
+import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 
-export function HistoryView({ householdId }: { householdId: string }) {
+export function HistoryView({
+  householdId,
+  initialLists,
+}: {
+  householdId: string;
+  initialLists?: ShoppingListWithCreator[];
+}) {
   useHouseholdRealtime(householdId);
 
   const { data: lists = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.listHistory(householdId),
     queryFn: () => fetchArchivedLists(createClient(), householdId),
+    initialData: initialLists,
+    staleTime: 60_000,
+    refetchOnMount: !initialLists,
   });
 
-  if (showQueryLoading(isLoading, lists)) {
-    return <p className="text-muted-foreground">Laddar…</p>;
-  }
+  const listsPending = isLoading && lists.length === 0;
 
   return (
     <div className="space-y-4">
@@ -29,7 +37,9 @@ export function HistoryView({ householdId }: { householdId: string }) {
       <p className="text-sm text-muted-foreground">
         Arkiverade listor – endast läsning
       </p>
-      {lists.length === 0 ? (
+      {listsPending ? (
+        <ListsSkeleton />
+      ) : lists.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">
           Inga arkiverade listor
         </p>

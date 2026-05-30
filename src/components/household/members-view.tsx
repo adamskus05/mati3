@@ -19,7 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ActivityFeed } from "@/components/household/activity-feed";
-import { showQueryLoading } from "@/lib/query/loading";
+import { MembersSkeleton } from "@/components/household/members-skeleton";
+import type { MemberWithProfile } from "@/lib/database.types";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 import { Crown, UserMinus } from "lucide-react";
 import { toast } from "sonner";
@@ -27,9 +28,11 @@ import { toast } from "sonner";
 export function MembersView({
   householdId,
   userId,
+  initialMembers,
 }: {
   householdId: string;
   userId: string;
+  initialMembers?: MemberWithProfile[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -58,8 +61,13 @@ export function MembersView({
   } = useQuery({
     queryKey: QUERY_KEYS.members(householdId),
     queryFn: () => fetchMembers(createClient(), householdId),
+    initialData: initialMembers,
+    staleTime: 60_000,
+    refetchOnMount: !initialMembers,
     throwOnError: false,
   });
+
+  const membersPending = isLoading && members.length === 0;
 
   const isOwner = membership?.role === "owner";
   const otherMembers = members.filter((m) => m.user_id !== userId);
@@ -100,10 +108,6 @@ export function MembersView({
     }
   }
 
-  if (showQueryLoading(isLoading, members)) {
-    return <p className="text-muted-foreground">Laddar…</p>;
-  }
-
   if (membersError) {
     return (
       <div className="space-y-2">
@@ -127,6 +131,9 @@ export function MembersView({
         </p>
       </div>
 
+      {membersPending ? (
+        <MembersSkeleton />
+      ) : (
       <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
         {members.map((m) => {
           const name =
@@ -197,6 +204,7 @@ export function MembersView({
           );
         })}
       </ul>
+      )}
 
       {membershipError && (
         <p className="text-xs text-muted-foreground">

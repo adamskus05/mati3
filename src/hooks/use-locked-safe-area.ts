@@ -4,6 +4,7 @@ import { useLayoutEffect } from "react";
 
 const LOCKED_VAR = "--mati-safe-bottom-locked";
 const DEFAULT_BOTTOM_PX = 34;
+const MAX_BOTTOM_PX = 40;
 
 function measureSafeAreaBottom(): number {
   const el = document.createElement("div");
@@ -16,34 +17,41 @@ function measureSafeAreaBottom(): number {
 }
 
 function readLockedPx(root: HTMLElement): number {
-  const raw = root.style.getPropertyValue(LOCKED_VAR);
+  const raw =
+    root.style.getPropertyValue(LOCKED_VAR) ||
+    getComputedStyle(root).getPropertyValue(LOCKED_VAR);
   return parseFloat(raw) || 0;
 }
 
-function applyMaxLockedSafeArea(): void {
-  const root = document.documentElement;
+function computeSafeBottomPx(): number {
   const measured = measureSafeAreaBottom();
   const standalone = window.matchMedia("(display-mode: standalone)").matches;
-  const next = Math.round(
-    measured > 0 ? measured : standalone ? DEFAULT_BOTTOM_PX : 0
-  );
-  const locked = Math.max(readLockedPx(root), next);
-  root.style.setProperty(LOCKED_VAR, `${locked}px`);
+  const base = Math.round(measured > 0 ? measured : standalone ? DEFAULT_BOTTOM_PX : 0);
+  return Math.min(base, MAX_BOTTOM_PX);
 }
 
-/** Lock bottom safe-area to session max so iOS PWA nav height does not shrink on scroll. */
+/** Lock bottom safe-area once per session; re-measure only on orientation change. */
+function applyLockedSafeArea(mode: "initial" | "orientation") {
+  const root = document.documentElement;
+  const next = computeSafeBottomPx();
+  const current = readLockedPx(root);
+
+  if (mode === "initial" && current > 0) return;
+  if (next <= 0 && current > 0) return;
+
+  root.style.setProperty(LOCKED_VAR, `${next}px`);
+}
+
 export function useLockedSafeArea() {
   useLayoutEffect(() => {
-    applyMaxLockedSafeArea();
-    const t = window.setTimeout(applyMaxLockedSafeArea, 150);
+    applyLockedSafeArea("initial");
 
     const onOrientation = () => {
-      window.setTimeout(applyMaxLockedSafeArea, 100);
+      window.setTimeout(() => applyLockedSafeArea("orientation"), 100);
     };
     window.addEventListener("orientationchange", onOrientation);
 
     return () => {
-      window.clearTimeout(t);
       window.removeEventListener("orientationchange", onOrientation);
     };
   }, []);

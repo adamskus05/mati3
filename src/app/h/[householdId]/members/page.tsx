@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { MembersView } from "@/components/household/members-view";
+import { fetchMembers } from "@/lib/queries/households";
 import { redirect } from "next/navigation";
+import type { MemberWithProfile } from "@/lib/database.types";
 
 export default async function MembersPage({
   params,
@@ -14,5 +16,18 @@ export default async function MembersPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  return <MembersView householdId={householdId} userId={user.id} />;
+  let initialMembers: MemberWithProfile[] | undefined;
+  try {
+    initialMembers = await fetchMembers(supabase, householdId);
+  } catch {
+    initialMembers = undefined;
+  }
+
+  return (
+    <MembersView
+      householdId={householdId}
+      userId={user.id}
+      initialMembers={initialMembers}
+    />
+  );
 }
