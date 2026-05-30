@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ListFilter, SquareCheck } from "lucide-react";
+import { Check, ListFilter, Search, SquareCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/sheet";
 
 export function ListFilters({
+  search,
+  onSearchChange,
   hideCompleted,
   onHideCompletedChange,
   categoryFilter,
@@ -23,6 +26,8 @@ export function ListFilters({
   onSelectModeChange,
   readOnly,
 }: {
+  search?: string;
+  onSearchChange?: (value: string) => void;
   hideCompleted: boolean;
   onHideCompletedChange: (v: boolean) => void;
   categoryFilter: string | null;
@@ -36,14 +41,16 @@ export function ListFilters({
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
+    if (search?.trim()) n++;
     if (hideCompleted) n++;
     if (categoryFilter !== null) n++;
     return n;
-  }, [hideCompleted, categoryFilter]);
+  }, [search, hideCompleted, categoryFilter]);
 
   if (readOnly) return null;
 
   function clearFilters() {
+    onSearchChange?.("");
     onHideCompletedChange(false);
     onCategoryFilterChange(null);
   }
@@ -70,6 +77,18 @@ export function ListFilters({
             <SheetTitle>Filtrera</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-5 pb-2">
+            {onSearchChange && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Sök i listan…"
+                  value={search ?? ""}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="h-10 rounded-xl pl-9"
+                />
+              </div>
+            )}
+
             <button
               type="button"
               className="flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm active:bg-muted"

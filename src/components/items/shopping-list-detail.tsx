@@ -11,7 +11,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS, LAST_CATEGORY_KEY } from "@/lib/constants";
 import {
@@ -31,16 +31,14 @@ import type {
   ShoppingItemWithCompleter,
   ShoppingListWithCreator,
 } from "@/lib/database.types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
+import { ListAddBar } from "@/components/items/list-add-bar";
 import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
 import { ListShopperBar } from "@/components/items/list-shopper-bar";
 import { ListFilters } from "@/components/items/list-filters";
 import { BulkActionsBar } from "@/components/items/bulk-actions-bar";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
 
 export function ShoppingListDetail({
   householdId,
@@ -61,6 +59,8 @@ export function ShoppingListDetail({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [addDraftName, setAddDraftName] = useState("");
+  const [addDraftCategory, setAddDraftCategory] = useState("none");
   const [editItem, setEditItem] = useState<ShoppingItemWithCompleter | null>(null);
 
   useListItemsRealtime(listId);
@@ -144,6 +144,13 @@ export function ShoppingListDetail({
       LAST_CATEGORY_KEY(householdId),
       catId ?? "none"
     );
+  }
+
+  function openAddForm(name = "") {
+    const last = getLastCategoryId();
+    setAddDraftName(name);
+    setAddDraftCategory(last ?? "none");
+    setAddOpen(true);
   }
 
   function toggleComplete(item: ShoppingItemWithCompleter) {
@@ -471,12 +478,6 @@ export function ShoppingListDetail({
             <p className="text-xs text-muted-foreground">Arkiverad – endast läsning</p>
           )}
         </div>
-        {!readOnly && (
-          <Button size="sm" className="rounded-xl gap-1" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Vara
-          </Button>
-        )}
       </div>
 
       {!readOnly && (
@@ -492,18 +493,19 @@ export function ShoppingListDetail({
         <PresetChips presets={presets} onSelect={addFromPreset} />
       )}
 
-      <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Sök varor…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-10 rounded-xl pl-9"
-          />
-        </div>
-        {!readOnly && (
+      {!readOnly && (
+        <ListAddBar
+          onAddWithName={openAddForm}
+          onOpenForm={() => openAddForm()}
+          disabled={readOnly}
+        />
+      )}
+
+      {!readOnly && (
+        <div className="flex justify-end gap-2">
           <ListFilters
+            search={search}
+            onSearchChange={setSearch}
             hideCompleted={hideCompleted}
             onHideCompletedChange={setHideCompleted}
             categoryFilter={categoryFilter}
@@ -515,8 +517,8 @@ export function ShoppingListDetail({
               if (!v) setSelectedIds(new Set());
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {categoryOrder.map((category) => {
         const catId = category?.id ?? null;
@@ -576,7 +578,13 @@ export function ShoppingListDetail({
             onOpenChange={setAddOpen}
             listId={listId}
             categories={categories}
-            onSuccess={() => setAddOpen(false)}
+            initialName={addDraftName}
+            initialCategoryId={addDraftCategory}
+            onSuccess={(savedCategoryId) => {
+              setLastCategoryId(savedCategoryId);
+              setAddOpen(false);
+              setAddDraftName("");
+            }}
           />
           <ItemFormDialog
             open={!!editItem}

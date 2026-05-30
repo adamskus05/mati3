@@ -16,11 +16,14 @@ export function CategoryPicker({
   value,
   onChange,
   label = "Kategori",
+  variant = "sheet",
 }: {
   categories: Category[];
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  /** inline: tap category chips directly; sheet: open bottom sheet (settings etc.) */
+  variant?: "sheet" | "inline";
 }) {
   const [open, setOpen] = useState(false);
   const selected =
@@ -29,6 +32,36 @@ export function CategoryPicker({
   function pick(next: string) {
     onChange(next);
     setOpen(false);
+  }
+
+  if (variant === "inline") {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{label}</p>
+        <div className="flex flex-wrap gap-2">
+          <InlineCategoryChip
+            name="Okategoriserad"
+            color="#9CA3AF"
+            selected={value === "none"}
+            onClick={() => onChange("none")}
+          />
+          {categories.map((c) => (
+            <InlineCategoryChip
+              key={c.id}
+              name={c.name}
+              color={c.color}
+              selected={value === c.id}
+              onClick={() => onChange(c.id)}
+            />
+          ))}
+        </div>
+        {categories.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Inga kategorier – skapa under Kategorier i menyn.
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -86,6 +119,38 @@ export function CategoryPicker({
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+function InlineCategoryChip({
+  name,
+  color,
+  selected,
+  onClick,
+}: {
+  name: string;
+  color: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-medium active:scale-[0.98]",
+        selected
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-transparent bg-muted text-foreground"
+      )}
+    >
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-background"
+        style={{ backgroundColor: color }}
+        aria-hidden
+      />
+      {name}
+    </button>
   );
 }
 

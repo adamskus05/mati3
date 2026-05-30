@@ -28,6 +28,8 @@ export function ItemFormDialog({
   listId,
   categories,
   item,
+  initialName = "",
+  initialCategoryId = "none",
   onSuccess,
 }: {
   open: boolean;
@@ -35,7 +37,9 @@ export function ItemFormDialog({
   listId: string;
   categories: Category[];
   item?: ShoppingItem;
-  onSuccess: () => void;
+  initialName?: string;
+  initialCategoryId?: string;
+  onSuccess: (savedCategoryId: string | null) => void;
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -54,13 +58,13 @@ export function ItemFormDialog({
       setCategoryId(item.category_id ?? "none");
       setNotes(item.notes ?? "");
     } else {
-      setName("");
+      setName(initialName);
       setQuantity("");
       setUnit("st");
-      setCategoryId("none");
+      setCategoryId(initialCategoryId);
       setNotes("");
     }
-  }, [item, open]);
+  }, [item, open, initialName, initialCategoryId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,7 +101,7 @@ export function ItemFormDialog({
       if (error) {
         toast.error(error.message);
         queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
-      } else onSuccess();
+      } else onSuccess(catId);
     } else {
       const sort_order = getNextSortOrderFromItems(cached, catId, false);
       const { data, error } = await supabase
@@ -116,7 +120,7 @@ export function ItemFormDialog({
           ...(old ?? []),
           data,
         ]);
-        onSuccess();
+        onSuccess(catId);
       }
     }
   }
@@ -174,6 +178,7 @@ export function ItemFormDialog({
             </div>
           </div>
           <CategoryPicker
+            variant="inline"
             categories={categories}
             value={categoryId}
             onChange={setCategoryId}
