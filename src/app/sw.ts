@@ -67,3 +67,40 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+/** Web Push – show notifications from /api/push/send (web-push payload JSON). */
+self.addEventListener("push", (event) => {
+  const fallback = { title: "Mati", body: "", url: "/" };
+  let payload = fallback;
+
+  if (event.data) {
+    try {
+      payload = { ...fallback, ...event.data.json() };
+    } catch {
+      payload = { ...fallback, body: event.data.text() };
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title ?? "Mati", {
+      body: payload.body ?? "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: payload.url ?? "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path =
+    (event.notification.data as { url?: string } | undefined)?.url ?? "/";
+  const target = new URL(path, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      if (clients[0]) return clients[0].focus();
+      return self.clients.openWindow(target);
+    })
+  );
+});
