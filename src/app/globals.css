@@ -123,6 +123,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior-y: none;
   }
   html {
     @apply font-sans;
@@ -138,8 +139,47 @@
   }
 }
 
-.safe-area-pb {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+:root {
+  --mati-nav-bar-height: 3.5rem;
+  --mati-safe-bottom: var(
+    --mati-safe-bottom-locked,
+    env(safe-area-inset-bottom, 0px)
+  );
+  --mati-bottom-nav-total: calc(var(--mati-nav-bar-height) + var(--mati-safe-bottom));
+}
+
+/* Fixed-height bottom tab bar (PWA-safe) */
+.app-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  background-color: var(--background);
+  padding-bottom: 0;
+  transform: translateZ(0);
+}
+
+.app-bottom-nav__bar {
+  height: var(--mati-nav-bar-height);
+  min-height: var(--mati-nav-bar-height);
+  max-height: var(--mati-nav-bar-height);
+  flex-shrink: 0;
+}
+
+.app-bottom-nav__safe {
+  height: var(--mati-safe-bottom);
+  min-height: var(--mati-safe-bottom);
+  max-height: var(--mati-safe-bottom);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.app-main-with-bottom-nav {
+  padding-bottom: var(--mati-bottom-nav-total);
 }
 
 .scrollbar-hide {
