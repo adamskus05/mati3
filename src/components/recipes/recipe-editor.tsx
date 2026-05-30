@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Link2, Loader2, Plus, Trash2 } from "lucide-react";
@@ -15,6 +15,7 @@ import type { RecipeIngredientInput, RecipeWithIngredients } from "@/lib/databas
 import { UNITS } from "@/lib/constants";
 import {
   formatInstructionSteps,
+  groupIngredientsBySection,
   parseInstructionLines,
 } from "@/lib/recipes/instruction-format";
 import { useOnline } from "@/hooks/use-online";
@@ -23,10 +24,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+
 type IngredientRow = RecipeIngredientInput & { key: string };
 
-function emptyIngredient(): IngredientRow {
-  return { key: crypto.randomUUID(), name: "", quantity: null, unit: null, notes: null };
+function emptyIngredient(section?: string | null): IngredientRow {
+  return {
+    key: crypto.randomUUID(),
+    name: "",
+    quantity: null,
+    unit: null,
+    notes: null,
+    section: section ?? null,
+  };
 }
 
 export function RecipeEditor({
@@ -55,6 +64,7 @@ export function RecipeEditor({
           quantity: i.quantity,
           unit: i.unit,
           notes: i.notes,
+          section: i.section,
         }))
       : [emptyIngredient()]
   );
@@ -64,6 +74,11 @@ export function RecipeEditor({
       : ""
   );
   const [saving, setSaving] = useState(false);
+
+  const ingredientGroups = useMemo(
+    () => groupIngredientsBySection(ingredients),
+    [ingredients]
+  );
 
   useEffect(() => {
     if (!recipe) return;
@@ -77,12 +92,30 @@ export function RecipeEditor({
         quantity: i.quantity,
         unit: i.unit,
         notes: i.notes,
+        section: i.section,
       }))
     );
     setInstructionsText(
       formatInstructionSteps(instructionsFromJson(recipe.instructions))
     );
   }, [recipe]);
+
+  function updateIngredient(key: string, patch: Partial<IngredientRow>) {
+    setIngredients((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, ...patch } : r))
+    );
+  }
+
+  function setGroupSection(section: string | null, keys: string[]) {
+    const value = section?.trim() || null;
+    setIngredients((prev) =>
+      prev.map((r) => (keys.includes(r.key) ? { ...r, section: value } : r))
+    );
+  }
+
+  function addIngredientInGroup(section: string | null) {
+    setIngredients((prev) => [...prev, emptyIngredient(section)]);
+  }
 
   async function handleImportUrl() {
     if (!importUrl.trim()) return;
@@ -113,6 +146,7 @@ export function RecipeEditor({
         name: string;
         quantity?: number;
         unit?: string;
+        section?: string;
       }[];
       setIngredients(
         ings.length > 0
@@ -122,6 +156,7 @@ export function RecipeEditor({
               quantity: i.quantity ?? null,
               unit: i.unit ?? null,
               notes: null,
+              section: i.section ?? null,
             }))
           : [emptyIngredient()]
       );
@@ -152,6 +187,7 @@ export function RecipeEditor({
           quantity: i.quantity ?? null,
           unit: i.unit?.trim() || null,
           notes: i.notes?.trim() || null,
+          section: i.section?.trim() || null,
           sort_order: index,
         })),
     };
@@ -274,83 +310,110 @@ export function RecipeEditor({
               Lägg till
             </Button>
           </div>
-          <ul className="space-y-2">
-            {ingredients.map((row, index) => (
-              <li
-                key={row.key}
-                className="flex flex-wrap items-end gap-2 rounded-xl border border-border/50 bg-card p-2"
-              >
-                <div className="min-w-0 flex-1 space-y-1">
+          <div className="space-y-4">
+            {ingredientGroups.map((group, gi) => {
+              const groupKeys = group.items.map((r) => r.key);
+              return (
+                <div
+                  key={groupKeys.join("-") || gi}
+                  className="space-y-2 rounded-xl border border-border/50 bg-card/50 p-2"
+                >
                   <Input
-                    placeholder="Ingrediens"
-                    value={row.name}
-                    onChange={(e) =>
-                      setIngredients((prev) =>
-                        prev.map((r) =>
-                          r.key === row.key ? { ...r, name: e.target.value } : r
-                        )
-                      )
-                    }
-                    className="h-9 rounded-lg"
+                    placeholder="Rubrik (t.ex. Biffar, Tzatziki)"
+                    value={group.section ?? ""}
+                    onChange={(e) => setGroupSection(e.target.value, groupKeys)}
+                    className="h-9 rounded-lg border-dashed font-medium"
                   />
-                </div>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="Antal"
-                  value={row.quantity ?? ""}
-                  onChange={(e) =>
-                    setIngredients((prev) =>
-                      prev.map((r) =>
-                        r.key === row.key
-                          ? {
-                              ...r,
+                  <ul className="space-y-2">
+                    {group.items.map((row, index) => (
+                      <li
+                        key={row.key}
+                        className="flex flex-wrap items-end gap-2 rounded-xl border border-border/50 bg-card p-2"
+                      >
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Input
+                            placeholder="Ingrediens"
+                            value={row.name}
+                            onChange={(e) =>
+                              updateIngredient(row.key, { name: e.target.value })
+                            }
+                            className="h-9 rounded-lg"
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="Antal"
+                          value={row.quantity ?? ""}
+                          onChange={(e) =>
+                            updateIngredient(row.key, {
                               quantity: e.target.value
                                 ? parseFloat(e.target.value)
                                 : null,
-                            }
-                          : r
-                      )
-                    )
-                  }
-                  className="h-9 w-16 rounded-lg"
-                />
-                <select
-                  value={row.unit ?? ""}
-                  onChange={(e) =>
-                    setIngredients((prev) =>
-                      prev.map((r) =>
-                        r.key === row.key
-                          ? { ...r, unit: e.target.value || null }
-                          : r
-                      )
-                    )
-                  }
-                  className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
-                >
-                  <option value="">–</option>
-                  {UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                  disabled={ingredients.length <= 1}
-                  onClick={() =>
-                    setIngredients((prev) => prev.filter((r) => r.key !== row.key))
-                  }
-                  aria-label={`Ta bort ingrediens ${index + 1}`}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+                            })
+                          }
+                          className="h-9 w-16 rounded-lg"
+                        />
+                        <select
+                          value={row.unit ?? ""}
+                          onChange={(e) =>
+                            updateIngredient(row.key, {
+                              unit: e.target.value || null,
+                            })
+                          }
+                          className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="">–</option>
+                          {UNITS.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0"
+                          disabled={ingredients.length <= 1}
+                          onClick={() =>
+                            setIngredients((prev) =>
+                              prev.filter((r) => r.key !== row.key)
+                            )
+                          }
+                          aria-label={`Ta bort ingrediens ${index + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-full gap-1 text-muted-foreground"
+                    onClick={() => addIngredientInGroup(group.section)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Ingrediens i denna grupp
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1"
+            onClick={() =>
+              setIngredients((prev) => [...prev, emptyIngredient(null)])
+            }
+          >
+            <Plus className="h-4 w-4" />
+            Ny grupp
+          </Button>
         </div>
 
         <div className="space-y-2">
@@ -361,10 +424,12 @@ export function RecipeEditor({
             onChange={(e) => setInstructionsText(e.target.value)}
             rows={8}
             className="resize-y rounded-xl font-mono text-sm leading-relaxed"
-            placeholder={"1. Förbered ingredienserna\n2. Blanda och laga\n3. Servera"}
+            placeholder={
+              "## Förbered\n1. Hacka löken\n\n## Blanda\n1. Blanda allt"
+            }
           />
           <p className="text-xs text-muted-foreground">
-            Ett numrerat steg per rad (1. 2. 3. …)
+            Fasrubrik med ## på egen rad, sedan numrerade steg (1. 2. 3. …)
           </p>
         </div>
 

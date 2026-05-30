@@ -335,6 +335,7 @@ export type Database = {
           quantity: number | null;
           unit: string | null;
           notes: string | null;
+          section: string | null;
           sort_order: number;
           created_at: string;
         };
@@ -345,6 +346,7 @@ export type Database = {
           quantity?: number | null;
           unit?: string | null;
           notes?: string | null;
+          section?: string | null;
           sort_order?: number;
           created_at?: string;
         };
@@ -355,6 +357,7 @@ export type Database = {
           quantity?: number | null;
           unit?: string | null;
           notes?: string | null;
+          section?: string | null;
           sort_order?: number;
           created_at?: string;
         };

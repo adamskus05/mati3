@@ -138,6 +138,7 @@ async function insertIngredients(
       quantity: ing.quantity ?? null,
       unit: ing.unit?.trim() || null,
       notes: ing.notes?.trim() || null,
+      section: ing.section?.trim() || null,
       sort_order: ing.sort_order ?? index,
     }))
     .filter((r) => r.name);

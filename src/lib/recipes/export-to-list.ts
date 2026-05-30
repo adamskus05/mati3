@@ -29,7 +29,7 @@ export async function exportRecipeToList(
   >[];
 
   let sortBase = baseItems;
-  const rows = ingredients.map((ing) => {
+  const rows = ingredients.filter((ing) => ing.name.trim()).map((ing) => {
     const sort_order = getNextSortOrderFromItems(sortBase, null, false);
     const row = {
       shopping_list_id: listId,

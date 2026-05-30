@@ -19,6 +19,10 @@ import { useOnline } from "@/hooks/use-online";
 import { ExportRecipeDialog } from "@/components/recipes/export-recipe-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  groupIngredientsBySection,
+  groupInstructionSteps,
+} from "@/lib/recipes/instruction-format";
 import { toast } from "sonner";
 
 export function RecipeDetail({
@@ -35,7 +39,10 @@ export function RecipeDetail({
   const queryClient = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
 
-  const steps = instructionsFromJson(recipe.instructions);
+  const instructionGroups = groupInstructionSteps(
+    instructionsFromJson(recipe.instructions)
+  );
+  const ingredientGroups = groupIngredientsBySection(recipe.recipe_ingredients);
 
   async function handleDelete() {
     if (!online) {
@@ -128,38 +135,64 @@ export function RecipeDetail({
           {recipe.recipe_ingredients.length === 0 ? (
             <p className="text-sm text-muted-foreground">Inga ingredienser</p>
           ) : (
-            <ul className="space-y-2">
-              {recipe.recipe_ingredients.map((ing) => {
-                const qty =
-                  ing.quantity != null
-                    ? `${ing.quantity}${ing.unit ? ` ${ing.unit}` : ""}`
-                    : ing.unit ?? "";
-                return (
-                  <li
-                    key={ing.id}
-                    className="flex justify-between gap-2 text-[length:var(--mati-text-body)]"
-                  >
-                    <span>{ing.name}</span>
-                    {qty && (
-                      <span className="shrink-0 text-muted-foreground">{qty}</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="space-y-4">
+              {ingredientGroups.map((group, gi) => (
+                <div key={gi}>
+                  {group.section && (
+                    <h3 className="mb-2 text-sm font-semibold text-foreground">
+                      {group.section}
+                    </h3>
+                  )}
+                  <ul className="space-y-2">
+                    {group.items.map((ing) => {
+                      const qty =
+                        ing.quantity != null
+                          ? `${ing.quantity}${ing.unit ? ` ${ing.unit}` : ""}`
+                          : ing.unit ?? "";
+                      return (
+                        <li
+                          key={ing.id}
+                          className="flex justify-between gap-2 text-[length:var(--mati-text-body)]"
+                        >
+                          <span>{ing.name}</span>
+                          {qty && (
+                            <span className="shrink-0 text-muted-foreground">
+                              {qty}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {steps.length > 0 && (
+      {instructionGroups.some((g) => g.section || g.steps.length > 0) && (
         <Card className="rounded-2xl">
           <CardContent className="p-4">
             <h2 className="mb-3 text-sm font-semibold">Gör så här</h2>
-            <ol className="list-decimal space-y-2 pl-5 text-[length:var(--mati-text-body)]">
-              {steps.map((step, i) => (
-                <li key={i}>{step}</li>
+            <div className="space-y-4">
+              {instructionGroups.map((group, gi) => (
+                <div key={gi}>
+                  {group.section && (
+                    <h3 className="mb-2 text-sm font-semibold text-foreground">
+                      {group.section}
+                    </h3>
+                  )}
+                  {group.steps.length > 0 && (
+                    <ol className="list-decimal space-y-2 pl-5 text-[length:var(--mati-text-body)]">
+                      {group.steps.map((step, si) => (
+                        <li key={si}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
               ))}
-            </ol>
+            </div>
           </CardContent>
         </Card>
       )}
