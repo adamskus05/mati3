@@ -292,6 +292,73 @@ export type Database = {
           created_at?: string;
         };
       };
+      recipes: {
+        Row: {
+          id: string;
+          household_id: string;
+          title: string;
+          source_url: string | null;
+          image_url: string | null;
+          instructions: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          household_id: string;
+          title: string;
+          source_url?: string | null;
+          image_url?: string | null;
+          instructions?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          household_id?: string;
+          title?: string;
+          source_url?: string | null;
+          image_url?: string | null;
+          instructions?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      recipe_ingredients: {
+        Row: {
+          id: string;
+          recipe_id: string;
+          name: string;
+          quantity: number | null;
+          unit: string | null;
+          notes: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipe_id: string;
+          name: string;
+          quantity?: number | null;
+          unit?: string | null;
+          notes?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          recipe_id?: string;
+          name?: string;
+          quantity?: number | null;
+          unit?: string | null;
+          notes?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -313,6 +380,10 @@ export type Database = {
       };
       get_item_household_id: {
         Args: { p_list_id: string };
+        Returns: string;
+      };
+      get_recipe_household_id: {
+        Args: { p_recipe_id: string };
         Returns: string;
       };
       is_household_owner: {

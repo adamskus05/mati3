@@ -12,6 +12,21 @@ export type ShoppingList =
 export type ShoppingItem =
   Database["public"]["Tables"]["shopping_items"]["Row"];
 export type ItemPreset = Database["public"]["Tables"]["item_presets"]["Row"];
+export type Recipe = Database["public"]["Tables"]["recipes"]["Row"];
+export type RecipeIngredient =
+  Database["public"]["Tables"]["recipe_ingredients"]["Row"];
+
+export type RecipeIngredientInput = {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+  sort_order?: number;
+};
+
+export type RecipeWithIngredients = Recipe & {
+  recipe_ingredients: RecipeIngredient[];
+};
 
 export type ShoppingListWithCreator = ShoppingList & {
   creator?: Pick<Profile, "display_name" | "email"> | null;

@@ -10,6 +10,7 @@ import {
   Settings,
   History,
   LogOut,
+  ChefHat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { useLockedSafeArea } from "@/hooks/use-locked-safe-area";
 
 const navItems = (householdId: string) => [
   { href: `/h/${householdId}`, label: "Listor", icon: Home },
+  { href: `/h/${householdId}/recipes`, label: "Recept", icon: ChefHat },
   { href: `/h/${householdId}/categories`, label: "Kategorier", icon: Tags },
   { href: `/h/${householdId}/members`, label: "Medlemmar", icon: Users },
   { href: `/h/${householdId}/history`, label: "Historik", icon: History },
@@ -79,7 +81,8 @@ export function AppShell({
           {items.map(({ href, label, icon: Icon }) => {
             const active =
               href === `/h/${householdId}`
-                ? pathname === href || pathname.includes("/lists/")
+                ? pathname === href ||
+                  (pathname.includes("/lists/") && !pathname.includes("/recipes"))
                 : pathname.startsWith(href);
             return (
               <Link

@@ -39,6 +39,8 @@ export const QUERY_KEYS = {
   list: (id: string) => ["list", id] as const,
   items: (listId: string) => ["items", listId] as const,
   presets: (id: string) => ["presets", id] as const,
+  recipes: (id: string) => ["recipes", id] as const,
+  recipe: (id: string) => ["recipe", id] as const,
   profile: ["profile"] as const,
   events: (id: string) => ["events", id] as const,
   myMembership: (householdId: string, userId: string) =>
