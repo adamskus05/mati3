@@ -11,13 +11,13 @@ export function PresetChips({
   onSelect: (preset: ItemPreset) => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+    <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]">
       {presets.map((p) => (
         <Button
           key={p.id}
           variant="secondary"
           size="sm"
-          className="shrink-0 rounded-full"
+          className="h-8 shrink-0 snap-start rounded-full px-3 text-xs"
           onClick={() => onSelect(p)}
         >
           {p.name}

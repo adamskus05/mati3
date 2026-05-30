@@ -23,8 +23,7 @@ export function CategoryPicker({
   value: string;
   onChange: (value: string) => void;
   label?: string;
-  /** inline: tap category chips directly; sheet: open bottom sheet (settings etc.) */
-  variant?: "sheet" | "inline";
+  variant?: "sheet" | "inline" | "scroll";
   layout?: "wrap" | "grid";
 }) {
   const [open, setOpen] = useState(false);
@@ -36,14 +35,19 @@ export function CategoryPicker({
     setOpen(false);
   }
 
-  if (variant === "inline") {
+  if (variant === "scroll" || variant === "inline") {
+    const isScroll = variant === "scroll";
     return (
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <div
           className={cn(
-            "gap-2",
-            layout === "grid" ? "grid grid-cols-2" : "flex flex-wrap"
+            isScroll
+              ? "flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-webkit-overflow-scrolling:touch]"
+              : cn(
+                  "gap-2",
+                  layout === "grid" ? "grid grid-cols-2" : "flex flex-wrap"
+                )
           )}
         >
           <InlineCategoryChip
@@ -51,6 +55,7 @@ export function CategoryPicker({
             color="#9CA3AF"
             selected={value === "none"}
             onClick={() => onChange("none")}
+            compact={isScroll}
           />
           {categories.map((c) => (
             <InlineCategoryChip
@@ -59,6 +64,7 @@ export function CategoryPicker({
               color={c.color}
               selected={value === c.id}
               onClick={() => onChange(c.id)}
+              compact={isScroll}
             />
           ))}
         </div>
@@ -134,30 +140,37 @@ function InlineCategoryChip({
   color,
   selected,
   onClick,
+  compact = false,
 }: {
   name: string;
   color: string;
   selected: boolean;
   onClick: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-h-[44px] items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left text-sm font-medium active:scale-[0.98]",
+        "flex items-center gap-2 rounded-xl border-2 font-medium active:scale-[0.98]",
+        compact
+          ? "h-[var(--mati-touch)] shrink-0 snap-start px-3 text-sm"
+          : "min-h-[var(--mati-touch)] px-3 py-2 text-left text-sm",
         selected
           ? "border-primary bg-primary/10 text-primary shadow-sm"
           : "border-border/50 bg-card text-foreground"
       )}
     >
       <span
-        className="h-3 w-3 shrink-0 rounded-full ring-2 ring-background"
+        className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-background"
         style={{ backgroundColor: color }}
         aria-hidden
       />
-      <span className="min-w-0 flex-1 truncate">{name}</span>
-      {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+      <span className={cn("truncate", compact ? "max-w-[8rem]" : "min-w-0 flex-1")}>
+        {name}
+      </span>
+      {selected && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
     </button>
   );
 }
@@ -178,7 +191,7 @@ function CategoryOption({
       type="button"
       onClick={onPick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3.5 text-left transition-all active:scale-[0.99]",
+        "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3.5 text-left active:scale-[0.99]",
         selected
           ? "border-primary bg-primary/10"
           : "border-transparent bg-muted/50 hover:bg-muted"

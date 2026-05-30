@@ -152,6 +152,16 @@
   /* Set early via inline script; never use live env() here (iOS shrinks on scroll). */
   --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
   --mati-bottom-nav-total: calc(var(--mati-nav-bar-height) + var(--mati-safe-bottom));
+  /* Compact touch scale — ~40px targets, readable type */
+  --mati-touch: 2.5rem;
+  --mati-text-input: 1rem;
+  --mati-text-title: 1.125rem;
+  --mati-text-body: 0.9375rem;
+}
+
+.mati-category-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
 }
 
 /* Fixed-height bottom tab bar (PWA-safe) */

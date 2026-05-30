@@ -43,8 +43,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Plus, ChevronRight, Pencil, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-import { showQueryLoading } from "@/lib/query/loading";
 import { profileDisplayName } from "@/lib/profiles/display-name";
+import { ListsSkeleton } from "@/components/lists/lists-skeleton";
 import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { ListSortMenu } from "@/components/lists/list-sort-menu";
 import { cn } from "@/lib/utils";
@@ -92,7 +92,7 @@ function SortableListRow({
             prefetch
             onPointerEnter={onWarm}
             onTouchStart={onWarm}
-            className="flex flex-1 items-center gap-3 p-4 transition-colors hover:bg-muted/50 active:bg-muted"
+            className="flex flex-1 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/50 active:bg-muted"
           >
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{list.name}</p>
@@ -120,7 +120,13 @@ function SortableListRow({
   );
 }
 
-export function ListsView({ householdId }: { householdId: string }) {
+export function ListsView({
+  householdId,
+  initialLists,
+}: {
+  householdId: string;
+  initialLists?: ShoppingListWithCreator[];
+}) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -148,6 +154,9 @@ export function ListsView({ householdId }: { householdId: string }) {
   const { data: lists = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.lists(householdId),
     queryFn: () => fetchActiveLists(createClient(), householdId),
+    initialData: initialLists,
+    staleTime: 60_000,
+    refetchOnMount: !initialLists,
   });
 
   const sortedLists = useMemo(() => {
@@ -171,7 +180,7 @@ export function ListsView({ householdId }: { householdId: string }) {
 
   useEffect(() => {
     for (const list of sortedLists.slice(0, 4)) {
-      warmList(list.id);
+      prefetchListDetail(queryClient, householdId, list.id);
     }
   }, [householdId, sortedLists, queryClient]);
 
@@ -283,14 +292,14 @@ export function ListsView({ householdId }: { householdId: string }) {
     }
   }
 
-  if (showQueryLoading(isLoading, lists)) {
-    return <p className="text-muted-foreground">Laddar listor…</p>;
-  }
+  const listsPending = isLoading && lists.length === 0;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-heading text-xl font-semibold">Inköpslistor</h1>
+        <h1 className="font-heading text-[length:var(--mati-text-title)] font-semibold">
+          Inköpslistor
+        </h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger className="inline-flex h-8 items-center justify-center gap-1 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground">
             <Plus className="h-4 w-4" />
@@ -321,7 +330,9 @@ export function ListsView({ householdId }: { householdId: string }) {
 
       <ListSortMenu sortMode={sortMode} onSortModeChange={changeSortMode} />
 
-      {lists.length === 0 ? (
+      {listsPending ? (
+        <ListsSkeleton />
+      ) : lists.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground">
             Inga listor ännu. Skapa din första!

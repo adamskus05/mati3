@@ -133,10 +133,8 @@ export function ItemFormDialog({
       } as ShoppingItemWithCompleter;
       queryClient.setQueryData<ShoppingItemWithCompleter[]>(
         QUERY_KEYS.items(listId),
-        (old) => [
-        ...(old ?? []),
-        optimistic,
-      ]);
+        (old) => [...(old ?? []), optimistic]
+      );
       onOpenChange(false);
 
       const { data, error } = await supabase
@@ -168,14 +166,16 @@ export function ItemFormDialog({
     }
   }
 
+  if (!open) return null;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[min(92dvh,640px)] flex-col rounded-t-2xl px-0 pb-0"
+        className="flex max-h-[min(88dvh,560px)] flex-col rounded-t-2xl px-0 pb-0"
       >
-        <SheetHeader className="border-b border-border/60 px-4 pb-3 text-left">
-          <SheetTitle className="font-heading text-xl">
+        <SheetHeader className="border-b border-border/60 px-4 pb-2 text-left">
+          <SheetTitle className="font-heading text-[length:var(--mati-text-title)]">
             {item ? "Redigera vara" : "Lägg till vara"}
           </SheetTitle>
         </SheetHeader>
@@ -184,10 +184,10 @@ export function ItemFormDialog({
           onSubmit={handleSubmit}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         >
-          <div className="space-y-5 px-4 py-4">
-            <div className="space-y-2">
+          <div className="space-y-3 px-4 py-3">
+            <div className="space-y-1.5">
               <Label htmlFor="itemName" className="text-xs text-muted-foreground">
-                Vad ska köpas?
+                Namn
               </Label>
               <Input
                 id="itemName"
@@ -196,13 +196,12 @@ export function ItemFormDialog({
                 placeholder="t.ex. Mjölk"
                 required
                 autoFocus
-                className="h-12 rounded-xl border-0 bg-muted/60 text-lg font-medium shadow-none focus-visible:ring-2"
+                className="mati-input h-[var(--mati-touch)] rounded-xl border-0 bg-muted/60 text-[length:var(--mati-text-input)] font-medium shadow-none focus-visible:ring-2"
               />
             </div>
 
             <CategoryPicker
-              variant="inline"
-              layout="grid"
+              variant="scroll"
               categories={categories}
               value={categoryId}
               onChange={setCategoryId}
@@ -211,7 +210,7 @@ export function ItemFormDialog({
             <div className="rounded-xl border border-border/60 bg-muted/20">
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-3 py-3 text-sm font-medium"
+                className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium"
                 onClick={() => setShowExtras((v) => !v)}
               >
                 Antal & kommentar
@@ -238,7 +237,7 @@ export function ItemFormDialog({
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="–"
-                        className="rounded-xl"
+                        className="h-[var(--mati-touch)] rounded-xl"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -280,13 +279,13 @@ export function ItemFormDialog({
             </div>
           </div>
 
-          <div className="sticky bottom-0 border-t border-border/60 bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="sticky bottom-0 border-t border-border/60 bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Button
               type="submit"
-              className="h-11 w-full rounded-xl text-base"
+              className="h-[var(--mati-touch)] w-full rounded-xl"
               disabled={loading || !name.trim()}
             >
-              {loading ? "Sparar…" : item ? "Spara ändringar" : "Lägg till i listan"}
+              {loading ? "Sparar…" : item ? "Spara" : "Lägg till"}
             </Button>
           </div>
         </form>

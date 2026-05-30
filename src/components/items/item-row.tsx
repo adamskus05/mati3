@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 
-export function ItemRow({
+function ItemRowInner({
   item,
   readOnly,
   selectMode,
@@ -57,9 +58,9 @@ export function ItemRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 rounded-xl border border-transparent bg-card px-2 py-2.5",
+        "flex min-h-[var(--mati-touch)] items-center gap-2 rounded-xl border border-transparent bg-card px-2 py-2",
         item.completed && "opacity-50",
-        isDragging && "z-10 shadow-lg border-border",
+        isDragging && "z-10 border-border shadow-lg",
         selected && "border-primary/40 bg-primary/5"
       )}
     >
@@ -88,14 +89,14 @@ export function ItemRow({
       />
       <button
         type="button"
-        className="flex-1 min-w-0 text-left active:opacity-70"
+        className="min-w-0 flex-1 text-left active:opacity-70"
         onClick={selectMode ? onSelectToggle : onToggle}
         disabled={readOnly}
       >
         <span
           className={cn(
-            "block font-medium",
-            item.completed && "line-through text-muted-foreground"
+            "block text-[length:var(--mati-text-body)] font-medium leading-tight",
+            item.completed && "text-muted-foreground line-through"
           )}
         >
           {item.name}
@@ -104,7 +105,7 @@ export function ItemRow({
           <span className="text-xs text-muted-foreground">{qty}</span>
         )}
         {item.notes && (
-          <span className="block text-xs text-muted-foreground italic">
+          <span className="block text-xs italic text-muted-foreground">
             {item.notes}
           </span>
         )}
@@ -116,10 +117,10 @@ export function ItemRow({
       </button>
       {!readOnly && !selectMode && (
         <div className="flex shrink-0">
-          <Button variant="ghost" size="icon" onClick={onEdit}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={onDelete}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </Button>
         </div>
@@ -127,3 +128,5 @@ export function ItemRow({
     </li>
   );
 }
+
+export const ItemRow = memo(ItemRowInner);

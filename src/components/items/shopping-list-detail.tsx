@@ -1,9 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  DndContext,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -31,8 +34,13 @@ import type {
   ShoppingItemWithCompleter,
   ShoppingListWithCreator,
 } from "@/lib/database.types";
-import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { ListAddBar } from "@/components/items/list-add-bar";
+
+const ItemFormDialog = dynamic(
+  () =>
+    import("@/components/items/item-form-dialog").then((m) => m.ItemFormDialog),
+  { ssr: false }
+);
 import { PresetChips } from "@/components/items/preset-chips";
 import { CategorySection } from "@/components/items/category-section";
 import { ListShopperBar } from "@/components/items/list-shopper-bar";
@@ -88,6 +96,7 @@ export function ShoppingListDetail({
     queryFn: () => fetchList(createClient(), listId),
     initialData: initialList ?? listFromCache,
     staleTime: 60_000,
+    refetchOnMount: initialList === undefined && listFromCache === undefined,
   });
 
   const { data: categories = [] } = useQuery({
@@ -102,6 +111,7 @@ export function ShoppingListDetail({
     },
     initialData: initialCategories,
     staleTime: 60_000,
+    refetchOnMount: !initialCategories,
   });
 
   const { data: items = [], isLoading } = useQuery({
@@ -109,6 +119,7 @@ export function ShoppingListDetail({
     queryFn: () => fetchListItems(createClient(), listId),
     initialData: initialItems,
     staleTime: 30_000,
+    refetchOnMount: !initialItems,
   });
 
   const { data: presets = [] } = useQuery({
@@ -329,7 +340,7 @@ export function ShoppingListDetail({
           category_id: categoryId,
           sort_order,
         })
-        .select(`*, completer:profiles!shopping_items_completed_by_fkey ( display_name, email )`)
+        .select()
         .single();
 
       if (error) {
@@ -338,29 +349,31 @@ export function ShoppingListDetail({
         return;
       }
 
-      const completer = null;
       queryClient.setQueryData<ShoppingItemWithCompleter[]>(
         QUERY_KEYS.items(listId),
         (old) =>
           old?.map((i) =>
-            i.id === tempId ? { ...data, completer } as ShoppingItemWithCompleter : i
+            i.id === tempId ? { ...data, completer: null } : i
           )
       );
     })();
   }
 
-  async function handleDragEnd(
-    event: DragEndEvent,
-    groupItems: ShoppingItemWithCompleter[]
-  ) {
+  async function handleDragEnd(event: DragEndEvent) {
     if (readOnly || !online || selectMode) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const activeItem = groupItems.find((i) => i.id === active.id);
-    const overItem = groupItems.find((i) => i.id === over.id);
+    const activeItem = filteredItems.find((i) => i.id === active.id);
+    const overItem = filteredItems.find((i) => i.id === over.id);
     if (!activeItem || !overItem) return;
     if (activeItem.completed !== overItem.completed) return;
+    if (activeItem.category_id !== overItem.category_id) return;
+
+    const catId = activeItem.category_id ?? null;
+    const groupItems = (grouped.get(catId) ?? []).filter(
+      (i) => i.completed === activeItem.completed
+    );
 
     const oldIndex = groupItems.findIndex((i) => i.id === active.id);
     const newIndex = groupItems.findIndex((i) => i.id === over.id);
@@ -488,7 +501,7 @@ export function ShoppingListDetail({
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="font-heading text-xl font-semibold truncate">
+          <h1 className="truncate font-heading text-[length:var(--mati-text-title)] font-semibold">
             {list?.name ?? "Lista"}
           </h1>
           {readOnly && (
@@ -511,11 +524,13 @@ export function ShoppingListDetail({
       )}
 
       {!readOnly && (
-        <ListAddBar
-          onAddWithName={openAddForm}
-          onOpenForm={() => openAddForm()}
-          disabled={readOnly}
-        />
+        <div className="sticky top-0 z-10 -mx-4 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+          <ListAddBar
+            onQuickAdd={quickAdd}
+            onOpenForm={(prefill) => openAddForm(prefill ?? "")}
+            disabled={readOnly}
+          />
+        </div>
       )}
 
       {!readOnly && (
@@ -540,36 +555,40 @@ export function ShoppingListDetail({
       {itemsPending ? (
         <ListItemsSkeleton />
       ) : (
-        categoryOrder.map((category) => {
-        const catId = category?.id ?? null;
-        if (categoryFilter !== null && catId !== categoryFilter) return null;
-        const groupItems = grouped.get(catId) ?? [];
-        if (groupItems.length === 0 && (search || hideCompleted)) return null;
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {categoryOrder.map((category) => {
+            const catId = category?.id ?? null;
+            if (categoryFilter !== null && catId !== categoryFilter) return null;
+            const groupItems = grouped.get(catId) ?? [];
+            if (groupItems.length === 0 && (search || hideCompleted)) return null;
 
-        return (
-          <CategorySection
-            key={catId ?? "uncategorized"}
-            category={category}
-            items={groupItems}
-            readOnly={readOnly}
-            selectMode={selectMode}
-            selectedIds={selectedIds}
-            onSelectToggle={(id) => {
-              setSelectedIds((prev) => {
-                const next = new Set(prev);
-                if (next.has(id)) next.delete(id);
-                else next.add(id);
-                return next;
-              });
-            }}
-            sensors={sensors}
-            onToggle={toggleComplete}
-            onEdit={setEditItem}
-            onDelete={deleteItem}
-            onDragEnd={(e) => handleDragEnd(e, groupItems)}
-          />
-        );
-      })
+            return (
+              <CategorySection
+                key={catId ?? "uncategorized"}
+                category={category}
+                items={groupItems}
+                readOnly={readOnly}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onSelectToggle={(id) => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
+                onToggle={toggleComplete}
+                onEdit={setEditItem}
+                onDelete={deleteItem}
+              />
+            );
+          })}
+        </DndContext>
       )}
 
       {!itemsPending && filteredItems.length === 0 && (
