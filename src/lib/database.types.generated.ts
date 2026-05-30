@@ -292,6 +292,32 @@ export type Database = {
           created_at?: string;
         };
       };
+      recipe_categories: {
+        Row: {
+          id: string;
+          household_id: string;
+          name: string;
+          color: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          household_id: string;
+          name: string;
+          color?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          household_id?: string;
+          name?: string;
+          color?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+      };
       recipes: {
         Row: {
           id: string;
@@ -300,6 +326,7 @@ export type Database = {
           source_url: string | null;
           image_url: string | null;
           instructions: Json;
+          recipe_category_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -311,6 +338,7 @@ export type Database = {
           source_url?: string | null;
           image_url?: string | null;
           instructions?: Json;
+          recipe_category_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -322,6 +350,7 @@ export type Database = {
           source_url?: string | null;
           image_url?: string | null;
           instructions?: Json;
+          recipe_category_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

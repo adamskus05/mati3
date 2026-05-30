@@ -7,6 +7,8 @@ export type Household = Database["public"]["Tables"]["households"]["Row"];
 export type HouseholdMember =
   Database["public"]["Tables"]["household_members"]["Row"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
+export type RecipeCategory =
+  Database["public"]["Tables"]["recipe_categories"]["Row"];
 export type ShoppingList =
   Database["public"]["Tables"]["shopping_lists"]["Row"];
 export type ShoppingItem =
@@ -25,7 +27,11 @@ export type RecipeIngredientInput = {
   sort_order?: number;
 };
 
-export type RecipeWithIngredients = Recipe & {
+export type RecipeWithCategory = Recipe & {
+  recipe_category?: Pick<RecipeCategory, "id" | "name" | "color"> | null;
+};
+
+export type RecipeWithIngredients = RecipeWithCategory & {
   recipe_ingredients: RecipeIngredient[];
 };
 

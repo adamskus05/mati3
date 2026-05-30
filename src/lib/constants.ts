@@ -34,6 +34,7 @@ export const QUERY_KEYS = {
   household: (id: string) => ["household", id] as const,
   members: (id: string) => ["members", id] as const,
   categories: (id: string) => ["categories", id] as const,
+  recipeCategories: (id: string) => ["recipeCategories", id] as const,
   lists: (id: string) => ["lists", id] as const,
   listHistory: (id: string) => ["listHistory", id] as const,
   list: (id: string) => ["list", id] as const,

@@ -6,10 +6,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, ChevronRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchRecipes } from "@/lib/queries/recipes";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS } from "@/lib/constants";
-import type { Recipe } from "@/lib/database.types";
+import type { RecipeCategory, RecipeWithCategory } from "@/lib/database.types";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  RecipeCategoryFilterBar,
+  type RecipeCategoryFilter,
+} from "@/components/recipes/recipe-category-filter";
+import { useHouseholdRealtime } from "@/hooks/use-realtime";
 
 function RecipesSkeleton() {
   return (
@@ -24,11 +30,16 @@ function RecipesSkeleton() {
 export function RecipesView({
   householdId,
   initialRecipes,
+  initialRecipeCategories,
 }: {
   householdId: string;
-  initialRecipes?: Recipe[];
+  initialRecipes?: RecipeWithCategory[];
+  initialRecipeCategories?: RecipeCategory[];
 }) {
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<RecipeCategoryFilter>("all");
+
+  useHouseholdRealtime(householdId);
 
   const { data: recipes = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.recipes(householdId),
@@ -38,11 +49,25 @@ export function RecipesView({
     refetchOnMount: "always",
   });
 
+  const { data: recipeCategories = [] } = useQuery({
+    queryKey: QUERY_KEYS.recipeCategories(householdId),
+    queryFn: () => fetchRecipeCategories(createClient(), householdId),
+    initialData: initialRecipeCategories,
+    staleTime: 60_000,
+    refetchOnMount: initialRecipeCategories === undefined,
+  });
+
   const filtered = useMemo(() => {
+    let list = recipes;
+    if (categoryFilter === "uncategorized") {
+      list = list.filter((r) => !r.recipe_category_id);
+    } else if (categoryFilter !== "all") {
+      list = list.filter((r) => r.recipe_category_id === categoryFilter);
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return recipes;
-    return recipes.filter((r) => r.title.toLowerCase().includes(q));
-  }, [recipes, search]);
+    if (!q) return list;
+    return list.filter((r) => r.title.toLowerCase().includes(q));
+  }, [recipes, search, categoryFilter]);
 
   const pending = isLoading && recipes.length === 0;
 
@@ -71,12 +96,18 @@ export function RecipesView({
         />
       </div>
 
+      <RecipeCategoryFilterBar
+        categories={recipeCategories}
+        value={categoryFilter}
+        onChange={setCategoryFilter}
+      />
+
       {pending ? (
         <RecipesSkeleton />
       ) : filtered.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground">
-            {search
+            {search || categoryFilter !== "all"
               ? "Inga träffar"
               : "Inga recept ännu. Skapa ett eller importera från en länk."}
           </CardContent>
@@ -91,12 +122,29 @@ export function RecipesView({
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{recipe.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(recipe.updated_at).toLocaleDateString("sv-SE", {
-                      day: "numeric",
-                      month: "short",
-                    })}
-                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                    {recipe.recipe_category && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-foreground/90"
+                        style={{
+                          backgroundColor: `${recipe.recipe_category.color}33`,
+                        }}
+                      >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: recipe.recipe_category.color }}
+                          aria-hidden
+                        />
+                        {recipe.recipe_category.name}
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(recipe.updated_at).toLocaleDateString("sv-SE", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </p>
+                  </div>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
               </Link>

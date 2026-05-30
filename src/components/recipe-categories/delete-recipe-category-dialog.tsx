@@ -1,0 +1,148 @@
+"use client";
+
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { QUERY_KEYS } from "@/lib/constants";
+import type { RecipeCategory } from "@/lib/database.types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { useOnline } from "@/hooks/use-online";
+
+export function DeleteRecipeCategoryDialog({
+  category,
+  categories,
+  householdId,
+  onClose,
+}: {
+  category: RecipeCategory;
+  categories: RecipeCategory[];
+  householdId: string;
+  onClose: () => void;
+}) {
+  const online = useOnline();
+  const queryClient = useQueryClient();
+  const [targetId, setTargetId] = useState<string>("uncategorized");
+  const [mode, setMode] = useState<"move" | "uncategorize">("move");
+
+  async function handleDelete() {
+    if (!online) {
+      toast.error("Ingen anslutning");
+      return;
+    }
+    const supabase = createClient();
+
+    if (mode === "move" && targetId !== "uncategorized") {
+      const { error } = await supabase
+        .from("recipes")
+        .update({ recipe_category_id: targetId })
+        .eq("recipe_category_id", category.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("recipes")
+        .update({ recipe_category_id: null })
+        .eq("recipe_category_id", category.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from("recipe_categories")
+      .delete()
+      .eq("id", category.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    void queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.recipeCategories(householdId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.recipes(householdId),
+    });
+    toast.success("Receptkategori borttagen");
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>Ta bort &quot;{category.name}&quot;?</DialogTitle>
+          <DialogDescription>
+            Vad ska hända med recept i denna kategori?
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Åtgärd</Label>
+            <Select
+              value={mode}
+              onValueChange={(v) => setMode(v as "move" | "uncategorize")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="move">Flytta till annan kategori</SelectItem>
+                <SelectItem value="uncategorize">
+                  Ta bort kategorikoppling (okategoriserade)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {mode === "move" && (
+            <div className="space-y-2">
+              <Label>Målkategori</Label>
+              <Select
+                value={targetId}
+                onValueChange={(v) => v && setTargetId(v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>
+              Avbryt
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={handleDelete}>
+              Ta bort
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

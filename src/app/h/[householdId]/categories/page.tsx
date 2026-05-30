@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { CategoriesView } from "@/components/categories/categories-view";
+import { CategoriesHub } from "@/components/categories/categories-hub";
 import { fetchCategories } from "@/lib/queries/categories";
-import type { Category } from "@/lib/database.types";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
+import type { Category, RecipeCategory } from "@/lib/database.types";
 
 export default async function CategoriesPage({
   params,
@@ -11,17 +12,26 @@ export default async function CategoriesPage({
   const { householdId } = await params;
   const supabase = await createClient();
 
-  let initialCategories: Category[] | undefined;
+  let initialItemCategories: Category[] | undefined;
+  let initialRecipeCategories: RecipeCategory[] | undefined;
+
   try {
-    initialCategories = await fetchCategories(supabase, householdId);
+    initialItemCategories = await fetchCategories(supabase, householdId);
   } catch {
-    initialCategories = undefined;
+    initialItemCategories = undefined;
+  }
+
+  try {
+    initialRecipeCategories = await fetchRecipeCategories(supabase, householdId);
+  } catch {
+    initialRecipeCategories = undefined;
   }
 
   return (
-    <CategoriesView
+    <CategoriesHub
       householdId={householdId}
-      initialCategories={initialCategories}
+      initialItemCategories={initialItemCategories}
+      initialRecipeCategories={initialRecipeCategories}
     />
   );
 }

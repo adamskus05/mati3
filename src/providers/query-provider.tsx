@@ -48,6 +48,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
               "households",
               "members",
               "recipes",
+              "recipeCategories",
             ].includes(query.queryKey[0]),
         },
       }}

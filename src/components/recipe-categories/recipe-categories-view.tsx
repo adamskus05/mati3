@@ -21,11 +21,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchCategories } from "@/lib/queries/categories";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS, CATEGORY_COLORS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
-import type { Category } from "@/lib/database.types";
+import type { RecipeCategory } from "@/lib/database.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,17 +36,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DeleteCategoryDialog } from "@/components/categories/delete-category-dialog";
+import { DeleteRecipeCategoryDialog } from "@/components/recipe-categories/delete-recipe-category-dialog";
+import { CategoriesSkeleton } from "@/components/categories/categories-skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { CategoriesSkeleton } from "@/components/categories/categories-skeleton";
 
-function SortableCategory({
+function SortableRecipeCategory({
   category,
   onEdit,
   onDelete,
 }: {
-  category: Category;
+  category: RecipeCategory;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -106,7 +106,7 @@ function SortableCategory({
   );
 }
 
-function CategoryForm({
+function RecipeCategoryForm({
   name,
   color,
   onNameChange,
@@ -122,13 +122,14 @@ function CategoryForm({
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="space-y-1.5">
-        <Label htmlFor="catName" className="text-xs">
+        <Label htmlFor="recipeCatName" className="text-xs">
           Namn
         </Label>
         <Input
-          id="catName"
+          id="recipeCatName"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
+          placeholder="Frukost, Lunch, Middag…"
           required
           className="h-9 rounded-lg"
         />
@@ -164,23 +165,20 @@ function CategoryForm({
   );
 }
 
-export function CategoriesView({
+export function RecipeCategoriesView({
   householdId,
   initialCategories,
-  embedded = false,
 }: {
   householdId: string;
-  initialCategories?: Category[];
-  /** Hide page title when shown inside CategoriesHub */
-  embedded?: boolean;
+  initialCategories?: RecipeCategory[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(CATEGORY_COLORS[0]);
-  const [editCat, setEditCat] = useState<Category | null>(null);
-  const [deleteCat, setDeleteCat] = useState<Category | null>(null);
+  const [editCat, setEditCat] = useState<RecipeCategory | null>(null);
+  const [deleteCat, setDeleteCat] = useState<RecipeCategory | null>(null);
 
   useHouseholdRealtime(householdId);
 
@@ -190,11 +188,11 @@ export function CategoriesView({
   );
 
   const { data: categories = [], isLoading } = useQuery({
-    queryKey: QUERY_KEYS.categories(householdId),
-    queryFn: () => fetchCategories(createClient(), householdId),
+    queryKey: QUERY_KEYS.recipeCategories(householdId),
+    queryFn: () => fetchRecipeCategories(createClient(), householdId),
     initialData: initialCategories,
     staleTime: 60_000,
-    refetchOnMount: !initialCategories,
+    refetchOnMount: initialCategories === undefined,
   });
 
   const categoriesPending = isLoading && categories.length === 0;
@@ -208,20 +206,23 @@ export function CategoriesView({
     const supabase = createClient();
     if (editCat) {
       const { error } = await supabase
-        .from("categories")
+        .from("recipe_categories")
         .update({ name: name.trim(), color })
         .eq("id", editCat.id);
       if (error) toast.error(error.message);
       else {
         setEditCat(null);
         setOpen(false);
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.categories(householdId),
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.recipeCategories(householdId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.recipes(householdId),
         });
       }
     } else {
       const maxOrder = categories.reduce((m, c) => Math.max(m, c.sort_order), -1);
-      const { error } = await supabase.from("categories").insert({
+      const { error } = await supabase.from("recipe_categories").insert({
         household_id: householdId,
         name: name.trim(),
         color,
@@ -231,10 +232,10 @@ export function CategoriesView({
       else {
         setName("");
         setOpen(false);
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.categories(householdId),
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.recipeCategories(householdId),
         });
-        toast.success("Kategori skapad");
+        toast.success("Receptkategori skapad");
       }
     }
   }
@@ -249,11 +250,11 @@ export function CategoriesView({
     const supabase = createClient();
     await Promise.all(
       reordered.map((c, i) =>
-        supabase.from("categories").update({ sort_order: i }).eq("id", c.id)
+        supabase.from("recipe_categories").update({ sort_order: i }).eq("id", c.id)
       )
     );
-    queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.categories(householdId),
+    void queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.recipeCategories(householdId),
     });
   }
 
@@ -264,7 +265,7 @@ export function CategoriesView({
     setOpen(true);
   }
 
-  function openEdit(cat: Category) {
+  function openEdit(cat: RecipeCategory) {
     setEditCat(cat);
     setName(cat.name);
     setColor(cat.color);
@@ -274,22 +275,9 @@ export function CategoriesView({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          {!embedded && (
-            <h1 className="font-heading text-xl font-semibold">Kategorier</h1>
-          )}
-          {categories.length > 0 && (
-            <p className={cn("text-xs text-muted-foreground", !embedded && "mt-0")}>
-              {categories.length} st · dra för att sortera
-              {embedded ? " (inköpsvaror)" : ""}
-            </p>
-          )}
-          {embedded && categories.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Kategorier för varor i inköpslistor
-            </p>
-          )}
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Kategorier för recept, t.ex. Frukost, Lunch, Middag
+        </p>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
             className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground active:opacity-90"
@@ -300,9 +288,11 @@ export function CategoriesView({
           </DialogTrigger>
           <DialogContent className="max-w-sm rounded-2xl">
             <DialogHeader>
-              <DialogTitle>{editCat ? "Redigera" : "Ny kategori"}</DialogTitle>
+              <DialogTitle>
+                {editCat ? "Redigera receptkategori" : "Ny receptkategori"}
+              </DialogTitle>
             </DialogHeader>
-            <CategoryForm
+            <RecipeCategoryForm
               name={name}
               color={color}
               onNameChange={setName}
@@ -317,7 +307,7 @@ export function CategoriesView({
         <CategoriesSkeleton />
       ) : categories.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Inga kategorier ännu
+          Inga receptkategorier ännu. Skapa t.ex. Frukost, Lunch eller Middag.
         </p>
       ) : (
         <DndContext
@@ -331,7 +321,7 @@ export function CategoriesView({
           >
             <ul className="overflow-hidden rounded-xl border border-border/60 bg-card">
               {categories.map((cat) => (
-                <SortableCategory
+                <SortableRecipeCategory
                   key={cat.id}
                   category={cat}
                   onEdit={() => openEdit(cat)}
@@ -344,7 +334,7 @@ export function CategoriesView({
       )}
 
       {deleteCat && (
-        <DeleteCategoryDialog
+        <DeleteRecipeCategoryDialog
           category={deleteCat}
           categories={categories.filter((c) => c.id !== deleteCat.id)}
           householdId={householdId}

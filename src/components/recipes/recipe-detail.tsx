@@ -79,6 +79,21 @@ export function RecipeDetail({
           <h1 className="font-heading text-[length:var(--mati-text-title)] font-semibold">
             {recipe.title}
           </h1>
+          {recipe.recipe_category && (
+            <span
+              className="mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{
+                backgroundColor: `${recipe.recipe_category.color}33`,
+              }}
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: recipe.recipe_category.color }}
+                aria-hidden
+              />
+              {recipe.recipe_category.name}
+            </span>
+          )}
           {recipe.source_url && (
             <a
               href={recipe.source_url}

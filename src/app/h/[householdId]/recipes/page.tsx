@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchRecipes } from "@/lib/queries/recipes";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { RecipesView } from "@/components/recipes/recipes-view";
 import { redirect } from "next/navigation";
-import type { Recipe } from "@/lib/database.types";
+import type { RecipeCategory, RecipeWithCategory } from "@/lib/database.types";
 
 export default async function RecipesPage({
   params,
@@ -16,14 +17,26 @@ export default async function RecipesPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  let initialRecipes: Recipe[] | undefined;
+  let initialRecipes: RecipeWithCategory[] | undefined;
+  let initialRecipeCategories: RecipeCategory[] | undefined;
+
   try {
     initialRecipes = await fetchRecipes(supabase, householdId);
   } catch {
     initialRecipes = undefined;
   }
 
+  try {
+    initialRecipeCategories = await fetchRecipeCategories(supabase, householdId);
+  } catch {
+    initialRecipeCategories = undefined;
+  }
+
   return (
-    <RecipesView householdId={householdId} initialRecipes={initialRecipes} />
+    <RecipesView
+      householdId={householdId}
+      initialRecipes={initialRecipes}
+      initialRecipeCategories={initialRecipeCategories}
+    />
   );
 }

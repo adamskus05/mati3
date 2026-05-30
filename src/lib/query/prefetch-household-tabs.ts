@@ -2,6 +2,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS } from "@/lib/constants";
 import { fetchCategories } from "@/lib/queries/categories";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
+import { fetchRecipes } from "@/lib/queries/recipes";
 import { fetchMembers } from "@/lib/queries/households";
 import { fetchActiveLists, fetchArchivedLists } from "@/lib/queries/lists";
 
@@ -16,6 +18,18 @@ export function prefetchHouseholdTabs(
   void queryClient.prefetchQuery({
     queryKey: QUERY_KEYS.lists(householdId),
     queryFn: () => fetchActiveLists(supabase, householdId),
+    staleTime: STALE_MS,
+  });
+
+  void queryClient.prefetchQuery({
+    queryKey: QUERY_KEYS.recipes(householdId),
+    queryFn: () => fetchRecipes(supabase, householdId),
+    staleTime: STALE_MS,
+  });
+
+  void queryClient.prefetchQuery({
+    queryKey: QUERY_KEYS.recipeCategories(householdId),
+    queryFn: () => fetchRecipeCategories(supabase, householdId),
     staleTime: STALE_MS,
   });
 

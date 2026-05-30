@@ -44,6 +44,31 @@ export function useHouseholdRealtime(householdId: string) {
         {
           event: "*",
           schema: "public",
+          table: "recipe_categories",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          debouncedInvalidate(queryClient, QUERY_KEYS.recipeCategories(householdId));
+          debouncedInvalidate(queryClient, QUERY_KEYS.recipes(householdId));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "recipes",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          debouncedInvalidate(queryClient, QUERY_KEYS.recipes(householdId));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "household_members",
           filter: `household_id=eq.${householdId}`,
         },

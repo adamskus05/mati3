@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -13,6 +13,7 @@ import {
   type RecipeUpsertPayload,
 } from "@/lib/queries/recipes";
 import type { RecipeIngredientInput, RecipeWithIngredients } from "@/lib/database.types";
+import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS, UNITS } from "@/lib/constants";
 import {
   formatInstructionSteps,
@@ -54,6 +55,9 @@ export function RecipeEditor({
   const isEdit = Boolean(recipe);
 
   const [title, setTitle] = useState(recipe?.title ?? "");
+  const [recipeCategoryId, setRecipeCategoryId] = useState<string | null>(
+    recipe?.recipe_category_id ?? null
+  );
   const [sourceUrl, setSourceUrl] = useState(recipe?.source_url ?? "");
   const [imageUrl, setImageUrl] = useState(recipe?.image_url ?? "");
   const [importUrl, setImportUrl] = useState("");
@@ -82,9 +86,16 @@ export function RecipeEditor({
     [ingredients]
   );
 
+  const { data: recipeCategories = [] } = useQuery({
+    queryKey: QUERY_KEYS.recipeCategories(householdId),
+    queryFn: () => fetchRecipeCategories(createClient(), householdId),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     if (!recipe) return;
     setTitle(recipe.title);
+    setRecipeCategoryId(recipe.recipe_category_id ?? null);
     setSourceUrl(recipe.source_url ?? "");
     setImageUrl(recipe.image_url ?? "");
     setIngredients(
@@ -181,6 +192,7 @@ export function RecipeEditor({
       title: title.trim() || "Namnlöst recept",
       source_url: sourceUrl.trim() || null,
       image_url: imageUrl.trim() || null,
+      recipe_category_id: recipeCategoryId,
       instructions,
       ingredients: ingredients
         .filter((i) => i.name.trim())
@@ -222,6 +234,9 @@ export function RecipeEditor({
       }
       void queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.recipes(householdId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.recipeCategories(householdId),
       });
       router.refresh();
     } catch (err) {
@@ -288,6 +303,30 @@ export function RecipeEditor({
             required
             className="h-[var(--mati-touch)] rounded-xl"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="recipeCategory">Kategori</Label>
+          <select
+            id="recipeCategory"
+            value={recipeCategoryId ?? ""}
+            onChange={(e) =>
+              setRecipeCategoryId(e.target.value ? e.target.value : null)
+            }
+            className="h-[var(--mati-touch)] w-full rounded-xl border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Ingen kategori</option>
+            {recipeCategories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          {recipeCategories.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Skapa kategorier under fliken Kategorier → Recept
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
