@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,6 +34,7 @@ import type {
   ShoppingItemWithCompleter,
   ShoppingListWithCreator,
 } from "@/lib/database.types";
+import { CategoryPicker } from "@/components/categories/category-picker";
 import { ListAddBar } from "@/components/items/list-add-bar";
 
 const ItemFormDialog = dynamic(
@@ -75,6 +76,7 @@ export function ShoppingListDetail({
   const [addOpen, setAddOpen] = useState(false);
   const [addDraftName, setAddDraftName] = useState("");
   const [addDraftCategory, setAddDraftCategory] = useState("none");
+  const [addCategoryId, setAddCategoryId] = useState("none");
   const [editItem, setEditItem] = useState<ShoppingItemWithCompleter | null>(null);
 
   useListItemsRealtime(listId);
@@ -176,11 +178,20 @@ export function ShoppingListDetail({
     );
   }
 
-  function openAddForm(name = "") {
+  useEffect(() => {
     const last = getLastCategoryId();
+    setAddCategoryId(last ?? "none");
+  }, [householdId]);
+
+  function openAddForm(name = "") {
     setAddDraftName(name);
-    setAddDraftCategory(last ?? "none");
+    setAddDraftCategory(addCategoryId);
     setAddOpen(true);
+  }
+
+  function pickAddCategory(id: string) {
+    setAddCategoryId(id);
+    setLastCategoryId(id === "none" ? null : id);
   }
 
   function toggleComplete(item: ShoppingItemWithCompleter) {
@@ -284,7 +295,8 @@ export function ShoppingListDetail({
 
   function quickAdd(name: string) {
     if (readOnly) return;
-    const categoryId = getLastCategoryId();
+    const categoryId = addCategoryId === "none" ? null : addCategoryId;
+    setLastCategoryId(categoryId);
     const current =
       queryClient.getQueryData<ShoppingItemWithCompleter[]>(
         QUERY_KEYS.items(listId)
@@ -408,7 +420,10 @@ export function ShoppingListDetail({
 
   function addFromPreset(preset: ItemPreset) {
     if (readOnly) return;
-    if (preset.category_id) setLastCategoryId(preset.category_id);
+    if (preset.category_id) {
+      setLastCategoryId(preset.category_id);
+      setAddCategoryId(preset.category_id);
+    }
     quickAdd(preset.name);
   }
 
@@ -524,11 +539,18 @@ export function ShoppingListDetail({
       )}
 
       {!readOnly && (
-        <div className="sticky top-0 z-10 -mx-4 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 -mx-4 space-y-2 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
           <ListAddBar
             onQuickAdd={quickAdd}
             onOpenForm={(prefill) => openAddForm(prefill ?? "")}
             disabled={readOnly}
+          />
+          <CategoryPicker
+            variant="scroll"
+            label="Kategori"
+            categories={categories}
+            value={addCategoryId}
+            onChange={pickAddCategory}
           />
         </div>
       )}
@@ -622,6 +644,7 @@ export function ShoppingListDetail({
             initialCategoryId={addDraftCategory}
             onSuccess={(savedCategoryId) => {
               setLastCategoryId(savedCategoryId);
+              setAddCategoryId(savedCategoryId ?? "none");
               setAddOpen(false);
               setAddDraftName("");
             }}
