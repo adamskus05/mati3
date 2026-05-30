@@ -60,11 +60,20 @@ def make_maskable_icon(size: int, src_img: Image.Image) -> Image.Image:
     return canvas
 
 
+def load_source() -> Image.Image:
+    img = Image.open(SRC)
+    if img.mode == "RGBA":
+        base = Image.new("RGB", img.size, BG)
+        base.paste(img, mask=img.split()[3])
+        return base
+    return img.convert("RGB")
+
+
 def main() -> None:
     if not SRC.exists():
         raise SystemExit(f"Missing source image: {SRC}")
 
-    src_img = Image.open(SRC).convert("RGB")
+    src_img = load_source()
 
     for name, px in [("icon-192", 192), ("icon-512", 512), ("apple-touch-icon", 180)]:
         path = OUT / f"{name}.png"
