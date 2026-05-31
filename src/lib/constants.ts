@@ -46,6 +46,10 @@ export const QUERY_KEYS = {
   events: (id: string) => ["events", id] as const,
   myMembership: (householdId: string, userId: string) =>
     ["myMembership", householdId, userId] as const,
+  signupRequests: (status?: string) =>
+    ["signupRequests", status ?? "all"] as const,
+  platformAdmins: ["platformAdmins"] as const,
+  isPlatformAdmin: ["isPlatformAdmin"] as const,
 };
 
 export const HOUSEHOLD_ROLES = {

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "supabase db push",
-    "db:types": "supabase gen types typescript --local > src/lib/database.types.generated.ts",
+    "db:types": "supabase gen types typescript --linked > src/lib/database.types.generated.ts",
+    "db:types:local": "supabase gen types typescript --local > src/lib/database.types.generated.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "icons:generate": "python3 scripts/generate-icons.py"
@@ -49,6 +50,7 @@
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "15.5.18",
+    "supabase": "^2.102.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.7"

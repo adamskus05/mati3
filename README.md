@@ -5,6 +5,7 @@ Progressive Web App för gemensamma inköpslistor inom hushåll. Byggd med Next.
 ## Funktioner
 
 - E-post/lösenord-autentisering med persistent session
+- Kontrollerad registrering: begär åtkomst → plattformsadmin godkänner och skickar inbjudan
 - Hushåll med inbjudningskod, medlemmar och realtidssynk
 - Kategorier med färg, sortering och säker borttagning
 - Inköpslistor med mjuk radering och historik (read-only)
@@ -33,14 +34,31 @@ npm run db:push
 Efter schemaändringar, uppdatera TypeScript-typer (kräver länkat projekt eller lokal Supabase):
 
 ```bash
+npm install
+npx supabase login
+npx supabase link --project-ref DITT_PROJEKT_REF
 npm run db:types
 ```
+
+(`db:types` hämtar från länkat molnprojekt. För lokal Supabase: `supabase start` och `npm run db:types:local`.)
 
 `database.types.generated.ts` skrivs om av CLI; app-specifika typer (`MemberWithProfile`, m.m.) ligger i `database.types.ts`.
 
 4. Under **Authentication → URL configuration**, lägg till:
    - Site URL: `http://localhost:3000`
    - Redirect URLs: `http://localhost:3000/auth/callback`
+
+5. **Stäng av öppen registrering:** Authentication → Providers → Email → inaktivera **Enable signups** (nya konton skapas endast via admin-inbjudan).
+
+6. Lägg `SUPABASE_SERVICE_ROLE_KEY` i `.env.local` (Settings → API → service_role). Krävs för att godkänna åtkomstbegäran.
+
+7. Efter migration, gör dig själv till första plattformsadmin i SQL Editor:
+
+```sql
+INSERT INTO public.platform_admins (email) VALUES ('din@epost.se');
+```
+
+(Ersätt med din inloggnings-e-post, små bokstäver.)
 
 ### 2. Lokal utveckling
 
@@ -54,9 +72,10 @@ npm run dev
 ### 3. Vercel
 
 1. Importera repot till Vercel.
-2. Lägg till `NEXT_PUBLIC_SUPABASE_URL` och `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. Lägg till `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` och `SUPABASE_SERVICE_ROLE_KEY`.
 3. För push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` (samma secret som Supabase Database Webhook mot `/api/push/send`).
 4. Uppdatera Supabase redirect URLs med din produktionsdomän.
+5. Bekräfta att **Enable signups** är av i Supabase Auth (se steg 5 ovan).
 
 ### Tester (RLS)
 

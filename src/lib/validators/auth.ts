@@ -14,3 +14,9 @@ export const registerSchema = z.object({
 export const resetSchema = z.object({
   email: z.string().email("Ogiltig e-postadress"),
 });
+
+export const requestAccessSchema = z.object({
+  email: z.string().email("Ogiltig e-postadress"),
+  displayName: z.string().min(1, "Ange ett namn").max(50),
+  message: z.string().max(500).optional(),
+});

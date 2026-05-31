@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchHousehold } from "@/lib/queries/households";
 import { SettingsView } from "@/components/settings/settings-view";
+import { checkIsPlatformAdmin } from "@/lib/actions/signup-access";
 import { notFound } from "next/navigation";
 
 export default async function SettingsPage({
@@ -22,6 +23,8 @@ export default async function SettingsPage({
     .eq("id", user!.id)
     .single<{ display_name: string | null }>();
 
+  const showAdminLink = await checkIsPlatformAdmin();
+
   return (
     <SettingsView
       householdId={householdId}
@@ -29,6 +32,7 @@ export default async function SettingsPage({
       inviteCode={household.invite_code}
       householdName={household.name}
       profileName={profile?.display_name ?? ""}
+      showAdminLink={showAdminLink}
     />
   );
 }

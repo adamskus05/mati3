@@ -2,18 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { registerSchema } from "@/lib/validators/auth";
+import { submitSignupRequest } from "@/lib/actions/signup-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-export function RegisterForm() {
-  const router = useRouter();
+export function RequestAccessForm() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -21,39 +19,29 @@ export function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const parsed = registerSchema.safeParse({ email, password, displayName });
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Ogiltiga uppgifter");
-      return;
-    }
-
     setLoading(true);
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        data: { display_name: parsed.data.displayName },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+    const result = await submitSignupRequest({
+      email,
+      displayName,
+      message: message || undefined,
     });
     setLoading(false);
 
-    if (authError) {
-      setError(authError.message);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
 
     setSuccess(true);
-    router.refresh();
   }
 
   if (success) {
     return (
       <p className="text-center text-sm text-muted-foreground">
-        Kolla din e-post för att bekräfta kontot, sedan kan du{" "}
+        Tack! Din begäran är mottagen. Du får e-post med inbjudan när en administratör
+        godkänt den. Har du redan inbjudan?{" "}
         <Link href="/login" className="text-primary underline">
-          logga in
+          Logga in
         </Link>
         .
       </p>
@@ -69,6 +57,7 @@ export function RegisterForm() {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           required
+          autoComplete="name"
         />
       </div>
       <div className="space-y-2">
@@ -83,19 +72,18 @@ export function RegisterForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Lösenord</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
+        <Label htmlFor="message">Meddelande (valfritt)</Label>
+        <Textarea
+          id="message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={3}
+          placeholder="T.ex. vem du är eller vilket hushåll du vill gå med i"
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Skapar konto…" : "Skapa konto"}
+        {loading ? "Skickar…" : "Begär åtkomst"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         Har du konto?{" "}

@@ -41,12 +41,14 @@ export function SettingsView({
   inviteCode,
   householdName,
   profileName,
+  showAdminLink = false,
 }: {
   householdId: string;
   userId: string;
   inviteCode: string;
   householdName: string;
   profileName: string;
+  showAdminLink?: boolean;
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -137,6 +139,19 @@ export function SettingsView({
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-xl font-semibold">Inställningar</h1>
+
+      {showAdminLink && (
+        <Card className="rounded-2xl border-primary/30">
+          <CardContent className="pt-4">
+            <Link
+              href="/admin/signup-requests"
+              className="text-sm font-medium text-primary underline"
+            >
+              Plattformsadministration →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="rounded-2xl">
         <CardHeader>

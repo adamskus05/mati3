@@ -1,10 +1,5 @@
-import { AuthCard } from "@/components/auth/auth-card";
-import { RegisterForm } from "@/components/auth/register-form";
+import { redirect } from "next/navigation";
 
 export default function RegisterPage() {
-  return (
-    <AuthCard title="Skapa konto" description="Börja planera inköp tillsammans">
-      <RegisterForm />
-    </AuthCard>
-  );
+  redirect("/request-access");
 }

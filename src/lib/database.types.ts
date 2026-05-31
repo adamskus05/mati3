@@ -58,3 +58,10 @@ export type HouseholdEvent =
 export type HouseholdEventWithActor = HouseholdEvent & {
   actor: Pick<Profile, "display_name" | "email"> | null;
 };
+
+export type PlatformAdmin =
+  Database["public"]["Tables"]["platform_admins"]["Row"];
+export type SignupRequest =
+  Database["public"]["Tables"]["signup_requests"]["Row"];
+export type SignupRequestStatus =
+  Database["public"]["Enums"]["signup_request_status"];

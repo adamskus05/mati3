@@ -73,8 +73,8 @@ export function LoginForm() {
       </p>
       <p className="text-center text-sm text-muted-foreground">
         Inget konto?{" "}
-        <Link href="/register" className="font-medium text-primary underline">
-          Registrera dig
+        <Link href="/request-access" className="font-medium text-primary underline">
+          Begär åtkomst
         </Link>
       </p>
     </form>
