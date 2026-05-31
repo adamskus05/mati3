@@ -261,6 +261,6 @@ export async function checkIsPlatformAdmin(): Promise<boolean> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return false;
-  const { data } = await supabase.rpc("is_platform_admin");
-  return Boolean(data);
+  const { isPlatformAdmin } = await import("@/lib/auth/platform-admin");
+  return isPlatformAdmin(user.id, user.email);
 }

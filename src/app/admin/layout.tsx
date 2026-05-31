@@ -18,7 +18,7 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  const admin = await isPlatformAdmin(user.id);
+  const admin = await isPlatformAdmin(user.id, user.email);
   if (!admin) {
     redirect("/");
   }
