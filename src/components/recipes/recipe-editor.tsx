@@ -22,6 +22,7 @@ import { QUERY_KEYS, UNITS } from "@/lib/constants";
 import {
   formatInstructionSteps,
   groupIngredientsBySection,
+  MATI_INGREDIENT_LIST_CLASS,
   parseInstructionLines,
 } from "@/lib/recipes/instruction-format";
 import { useOnline } from "@/hooks/use-online";
@@ -424,12 +425,10 @@ export function RecipeEditor({
                     onChange={(e) => setGroupSection(e.target.value, groupKeys)}
                     className="h-9 rounded-lg border-dashed font-medium"
                   />
-                  <ul className="space-y-2">
+                  <ul className={MATI_INGREDIENT_LIST_CLASS}>
                     {group.items.map((row, index) => (
-                      <li
-                        key={row.key}
-                        className="flex flex-wrap items-end gap-2 rounded-xl border border-border/50 bg-card p-2"
-                      >
+                      <li key={row.key}>
+                        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border/50 bg-card p-2">
                         <div className="min-w-0 flex-1 space-y-1">
                           <Input
                             placeholder="Ingrediens"
@@ -485,6 +484,7 @@ export function RecipeEditor({
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>

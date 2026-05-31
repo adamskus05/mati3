@@ -164,6 +164,15 @@
   padding-inline: var(--mati-page-x);
 }
 
+.mati-ingredient-list {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+}
+
+.mati-ingredient-list > li {
+  display: list-item;
+}
+
 .mati-bleed-x {
   margin-inline: calc(-1 * var(--mati-page-x));
   padding-inline: var(--mati-page-x);

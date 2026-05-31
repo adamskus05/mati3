@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   groupIngredientsBySection,
   groupInstructionSteps,
+  MATI_INGREDIENT_LIST_CLASS,
 } from "@/lib/recipes/instruction-format";
 import { toast } from "sonner";
 
@@ -172,7 +173,7 @@ export function RecipeDetail({
                       {group.section}
                     </h3>
                   )}
-                  <ul className="space-y-2">
+                  <ul className={MATI_INGREDIENT_LIST_CLASS}>
                     {group.items.map((ing) => {
                       const qty =
                         ing.quantity != null
@@ -181,13 +182,20 @@ export function RecipeDetail({
                       return (
                         <li
                           key={ing.id}
-                          className="flex justify-between gap-2 text-[length:var(--mati-text-body)]"
+                          className="text-[length:var(--mati-text-body)]"
                         >
-                          <span>{ing.name}</span>
-                          {qty && (
-                            <span className="shrink-0 text-muted-foreground">
-                              {qty}
-                            </span>
+                          <span className="flex justify-between gap-2">
+                            <span>{ing.name}</span>
+                            {qty && (
+                              <span className="shrink-0 text-muted-foreground">
+                                {qty}
+                              </span>
+                            )}
+                          </span>
+                          {ing.notes?.trim() && (
+                            <p className="mt-0.5 text-sm text-muted-foreground">
+                              {ing.notes}
+                            </p>
                           )}
                         </li>
                       );

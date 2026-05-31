@@ -76,6 +76,9 @@ export type IngredientGroup<T> = {
   items: T[];
 };
 
+/** Bullet list for recipe ingredients (use on `<ul>`; keeps markers when rows use flex). */
+export const MATI_INGREDIENT_LIST_CLASS = "mati-ingredient-list space-y-2";
+
 /** Group ingredient rows by section (preserves order). */
 export function groupIngredientsBySection<T extends { section?: string | null }>(
   items: T[]
