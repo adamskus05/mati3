@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Pencil, Trash2, Tags } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchCategories } from "@/lib/queries/categories";
 import { QUERY_KEYS, CATEGORY_COLORS } from "@/lib/constants";
@@ -40,6 +40,7 @@ import { DeleteCategoryDialog } from "@/components/categories/delete-category-di
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CategoriesSkeleton } from "@/components/categories/categories-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function SortableCategory({
   category,
@@ -355,9 +356,20 @@ export function CategoriesView({
       {categoriesPending ? (
         <CategoriesSkeleton />
       ) : categories.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Inga kategorier ännu
-        </p>
+        <EmptyState
+          icon={Tags}
+          title="Inga kategorier ännu"
+          description="Gruppera varor på inköpslistan, t.ex. Mejeri eller Grönt."
+          primaryAction={{
+            label: "Skapa kategori",
+            onClick: () => {
+              setEditCat(null);
+              setName("");
+              setColor(CATEGORY_COLORS[0]);
+              setOpen(true);
+            },
+          }}
+        />
       ) : (
         <DndContext
           sensors={sensors}

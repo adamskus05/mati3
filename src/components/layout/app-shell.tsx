@@ -12,6 +12,7 @@ import {
   History,
   LogOut,
   ChefHat,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { HouseholdSwitcher } from "@/components/household/household-switcher";
 import { useLockedSafeArea } from "@/hooks/use-locked-safe-area";
 import { prefetchHouseholdTabs } from "@/lib/query/prefetch-household-tabs";
 import { isStandalonePwa } from "@/lib/pwa/standalone";
+import { GlobalSearchSheet } from "@/components/search/global-search-sheet";
 
 const navItems = (householdId: string) => [
   { href: `/h/${householdId}`, label: "Listor", icon: Home },
@@ -46,6 +48,7 @@ export function AppShell({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const items = navItems(householdId);
 
   useEffect(() => {
@@ -81,6 +84,15 @@ export function AppShell({
             />
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Sök"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
             <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="icon" aria-label="Logga ut">
@@ -94,6 +106,12 @@ export function AppShell({
       <main className="app-main-scroll mx-auto w-full max-w-lg mati-page-x py-4">
         {children}
       </main>
+
+      <GlobalSearchSheet
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        householdId={householdId}
+      />
 
       <nav className="app-bottom-nav" aria-label="Huvudnavigering">
         <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">

@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, ChevronRight, Search } from "lucide-react";
+import { Plus, ChevronRight, Search, ChefHat } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchRecipes } from "@/lib/queries/recipes";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   RecipeCategoryFilterBar,
   type RecipeCategoryFilter,
@@ -104,13 +104,23 @@ export function RecipesView({ householdId }: { householdId: string }) {
       {pending ? (
         <RecipesSkeleton />
       ) : filtered.length === 0 ? (
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            {search || categoryFilter !== "all"
-              ? "Inga träffar"
-              : "Inga recept ännu. Skapa ett eller importera från en länk."}
-          </CardContent>
-        </Card>
+        search || categoryFilter !== "all" ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Inga träffar</p>
+        ) : (
+          <EmptyState
+            icon={ChefHat}
+            title="Inga recept ännu"
+            description="Samla familjens favoriter på ett ställe."
+            primaryAction={{
+              label: "Lägg till recept",
+              href: `/h/${householdId}/recipes/new`,
+            }}
+            secondaryAction={{
+              label: "Importera recept",
+              href: `/h/${householdId}/recipes/new?import=1`,
+            }}
+          />
+        )
       ) : (
         <ul className="space-y-2">
           {filtered.map((recipe) => (

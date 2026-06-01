@@ -31,6 +31,8 @@ import {
 import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { HouseholdManagement } from "@/components/household/household-management";
+import { AuditLogPanel } from "@/components/household/audit-log-panel";
+import { fetchMyMembership } from "@/lib/queries/households";
 import { PushNotificationSettings } from "@/components/settings/push-notification-settings";
 import { fetchUserHouseholds } from "@/lib/queries/households";
 import { toast } from "sonner";
@@ -66,6 +68,13 @@ export function SettingsView({
     queryFn: () => fetchUserHouseholds(createClient()),
     throwOnError: false,
   });
+
+  const { data: membership } = useQuery({
+    queryKey: QUERY_KEYS.myMembership(householdId, userId),
+    queryFn: () => fetchMyMembership(createClient(), householdId, userId),
+    throwOnError: false,
+  });
+  const isOwner = membership?.role === "owner";
 
   const { data: categories = [] } = useQuery({
     queryKey: QUERY_KEYS.categories(householdId),
@@ -207,6 +216,8 @@ export function SettingsView({
         inviteCode={inviteCode}
         householdName={householdName}
       />
+
+      {isOwner && <AuditLogPanel householdId={householdId} />}
 
       <PushNotificationSettings userId={userId} />
 

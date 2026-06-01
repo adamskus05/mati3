@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { RecipeEditor } from "@/components/recipes/recipe-editor";
 import { redirect } from "next/navigation";
@@ -14,5 +15,9 @@ export default async function NewRecipePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  return <RecipeEditor householdId={householdId} userId={user.id} />;
+  return (
+    <Suspense fallback={null}>
+      <RecipeEditor householdId={householdId} userId={user.id} />
+    </Suspense>
+  );
 }

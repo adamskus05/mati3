@@ -1,144 +1,38 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { parseRecipeFromHtml } from "@/lib/recipes/parse-recipe-url";
-import { assertSafeRecipeUrl } from "@/lib/recipes/url-validation";
 
-const bodySchema = z.object({
-  url: z.string().min(8).max(2048),
-});
-
-const MAX_BYTES = 2 * 1024 * 1024;
-const FETCH_TIMEOUT_MS = 10_000;
-
+/**
+ * Deprecated: recipe import runs on Supabase Edge Function `recipe-import-url`.
+ * Kept as auth proxy for clients that still call this route.
+ */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session?.access_token) {
     return NextResponse.json({ error: "Ej inloggad" }, { status: 401 });
   }
 
-  let json: unknown;
-  try {
-    json = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Ogiltig begäran" }, { status: 400 });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ error: "Serverfel" }, { status: 503 });
   }
 
-  const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Ogiltig URL" }, { status: 400 });
-  }
+  const body = await request.text();
 
-  let url: URL;
-  try {
-    url = assertSafeRecipeUrl(parsed.data.url);
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Ogiltig URL" },
-      { status: 400 }
-    );
-  }
+  const res = await fetch(`${supabaseUrl}/functions/v1/recipe-import-url`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
+    },
+    body,
+  });
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      },
-      redirect: "follow",
-    });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Kunde inte hämta sidan (${res.status})` },
-        { status: 422 }
-      );
-    }
-
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
-      return NextResponse.json(
-        { error: "Länken pekar inte på en vanlig webbsida" },
-        { status: 422 }
-      );
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) {
-      return NextResponse.json(
-        { error: "Kunde inte läsa sidan" },
-        { status: 422 }
-      );
-    }
-
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_BYTES) {
-        return NextResponse.json(
-          { error: "Sidan är för stor att tolka" },
-          { status: 422 }
-        );
-      }
-      chunks.push(value);
-    }
-
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(
-      concatenateUint8(chunks)
-    );
-
-    const recipe = parseRecipeFromHtml(html, url.toString());
-    if (!recipe) {
-      return NextResponse.json(
-        {
-          error:
-            "Kunde inte hitta receptdata på sidan. Fyll i ingredienser och instruktioner manuellt.",
-        },
-        { status: 422 }
-      );
-    }
-
-    return NextResponse.json({
-      ...recipe,
-      sourceUrl: url.toString(),
-    });
-  } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") {
-      return NextResponse.json(
-        { error: "Tidsgräns – sidan svarade inte i tid" },
-        { status: 422 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Kunde inte hämta recept från länken" },
-      { status: 422 }
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function concatenateUint8(chunks: Uint8Array[]): Uint8Array {
-  const len = chunks.reduce((n, c) => n + c.length, 0);
-  const out = new Uint8Array(len);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.length;
-  }
-  return out;
+  const data = await res.json().catch(() => ({}));
+  return NextResponse.json(data, { status: res.status });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -55,6 +55,7 @@ export function RecipeEditor({
   recipe?: RecipeWithIngredients;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const online = useOnline();
   const isEdit = Boolean(recipe);
@@ -96,6 +97,12 @@ export function RecipeEditor({
     queryFn: () => fetchRecipeCategories(createClient(), householdId),
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (!isEdit && searchParams.get("import") === "1") {
+      document.getElementById("recipeImportUrl")?.focus();
+    }
+  }, [isEdit, searchParams]);
 
   useEffect(() => {
     if (!recipe) return;
@@ -144,23 +151,43 @@ export function RecipeEditor({
 
     setImporting(true);
     try {
-      const res = await fetch("/api/recipes/import-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: importUrl.trim() }),
+      const supabase = createClient();
+      const { data, error } = await supabase.functions.invoke("recipe-import-url", {
+        body: { url: importUrl.trim() },
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Kunde inte hämta recept");
+
+      if (error) {
+        const ctx = error.context as { error?: string } | undefined;
+        toast.error(ctx?.error ?? error.message ?? "Kunde inte hämta recept");
         setSourceUrl(importUrl.trim());
         return;
       }
 
-      setTitle(data.title ?? "");
-      setSourceUrl(data.sourceUrl ?? importUrl.trim());
-      if (data.imageUrl) setImageUrl(data.imageUrl);
+      const payload = data as {
+        error?: string;
+        title?: string;
+        sourceUrl?: string;
+        imageUrl?: string;
+        ingredients?: {
+          name: string;
+          quantity?: number;
+          unit?: string;
+          section?: string;
+        }[];
+        instructions?: string[];
+      };
 
-      const ings = (data.ingredients ?? []) as {
+      if (payload?.error) {
+        toast.error(payload.error);
+        setSourceUrl(importUrl.trim());
+        return;
+      }
+
+      setTitle(payload.title ?? "");
+      setSourceUrl(payload.sourceUrl ?? importUrl.trim());
+      if (payload.imageUrl) setImageUrl(payload.imageUrl);
+
+      const ings = (payload.ingredients ?? []) as {
         name: string;
         quantity?: number;
         unit?: string;
@@ -179,7 +206,7 @@ export function RecipeEditor({
           : [emptyIngredient()]
       );
 
-      const steps = (data.instructions ?? []) as string[];
+      const steps = (payload.instructions ?? []) as string[];
       setInstructionsText(formatInstructionSteps(steps));
       toast.success("Recept hämtat – justera och spara");
     } catch {
@@ -327,6 +354,7 @@ export function RecipeEditor({
             <Label className="text-xs text-muted-foreground">Från länk</Label>
             <div className="flex gap-2">
               <Input
+                id="recipeImportUrl"
                 type="url"
                 placeholder="https://…"
                 value={importUrl}

@@ -63,7 +63,9 @@ export function ExportRecipeDialog({
 
     try {
       let targetListId = listId;
-      let count = 0;
+      let merged = 0;
+      let added = 0;
+      let total = 0;
 
       if (mode === "new") {
         if (!newListName.trim()) {
@@ -80,7 +82,8 @@ export function ExportRecipeDialog({
           ingredientOverrides
         );
         targetListId = result.listId;
-        count = result.itemCount;
+        total = result.itemCount;
+        added = result.itemCount;
         void queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.lists(householdId),
         });
@@ -90,12 +93,16 @@ export function ExportRecipeDialog({
           setLoading(false);
           return;
         }
-        count = await exportRecipeToList(
+        const result = await exportRecipeToList(
           supabase,
           recipeId,
           listId,
-          ingredientOverrides
+          ingredientOverrides,
+          { mergeWithExisting: true }
         );
+        merged = result.merged;
+        added = result.added;
+        total = result.total;
       }
 
       void queryClient.invalidateQueries({
@@ -103,11 +110,17 @@ export function ExportRecipeDialog({
       });
 
       setResultListId(targetListId);
-      toast.success(
-        count > 0
-          ? `${count} varor lades till i listan`
-          : "Receptet har inga ingredienser att exportera"
-      );
+      if (total === 0) {
+        toast.success("Receptet har inga ingredienser att exportera");
+      } else if (merged > 0 && added > 0) {
+        toast.success(
+          `${merged} varor uppdaterades, ${added} nya lades till`
+        );
+      } else if (merged > 0) {
+        toast.success(`${merged} varor uppdaterades i listan`);
+      } else {
+        toast.success(`${added} varor lades till i listan`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export misslyckades");
     } finally {

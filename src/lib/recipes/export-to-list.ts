@@ -1,14 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getNextSortOrderFromItems } from "@/lib/items/sort-order";
-import type { ShoppingItemWithCompleter } from "@/lib/database.types";
+import {
+  planExportMerge,
+  type ExistingListItem,
+  type ExportToListResult,
+} from "@/lib/items/merge-export-ingredients";
 import type { ExportIngredientRow } from "@/lib/recipes/scale-ingredients";
+
+export type { ExportToListResult };
 
 export async function exportRecipeToList(
   supabase: SupabaseClient,
   recipeId: string,
   listId: string,
-  ingredientOverrides?: ExportIngredientRow[]
-): Promise<number> {
+  ingredientOverrides?: ExportIngredientRow[],
+  options?: { mergeWithExisting?: boolean }
+): Promise<ExportToListResult> {
+  const mergeWithExisting = options?.mergeWithExisting ?? true;
+
   let ingredients: ExportIngredientRow[];
 
   if (ingredientOverrides) {
@@ -21,7 +30,7 @@ export async function exportRecipeToList(
       .order("sort_order");
 
     if (ingError) throw ingError;
-    if (!data?.length) return 0;
+    if (!data?.length) return { merged: 0, added: 0, total: 0 };
 
     ingredients = data.map((ing) => ({
       name: ing.name,
@@ -31,48 +40,94 @@ export async function exportRecipeToList(
     }));
   }
 
-  if (!ingredients.length) return 0;
+  const filtered = ingredients.filter((ing) => ing.name.trim());
+  if (!filtered.length) return { merged: 0, added: 0, total: 0 };
 
   const { data: existing, error: listError } = await supabase
     .from("shopping_items")
-    .select("id, category_id, completed, sort_order")
+    .select(
+      "id, name, quantity, unit, notes, category_id, completed, sort_order"
+    )
     .eq("shopping_list_id", listId);
 
   if (listError) throw listError;
 
-  const baseItems = (existing ?? []) as Pick<
-    ShoppingItemWithCompleter,
-    "category_id" | "completed" | "sort_order"
-  >[];
+  const existingItems = (existing ?? []) as ExistingListItem[];
 
-  let sortBase = baseItems;
-  const rows = ingredients.filter((ing) => ing.name.trim()).map((ing) => {
-    const sort_order = getNextSortOrderFromItems(sortBase, null, false);
-    const row = {
-      shopping_list_id: listId,
-      name: ing.name,
-      quantity: ing.quantity,
-      unit: ing.unit,
-      notes: ing.notes,
-      category_id: null,
-      completed: false,
-      sort_order,
-    };
-    sortBase = [
-      ...sortBase,
-      {
+  if (!mergeWithExisting || existingItems.length === 0) {
+    let sortBase = existingItems;
+    const rows = filtered.map((ing) => {
+      const sort_order = getNextSortOrderFromItems(sortBase, null, false);
+      const row = {
+        shopping_list_id: listId,
+        name: ing.name.trim(),
+        quantity: ing.quantity,
+        unit: ing.unit,
+        notes: ing.notes,
         category_id: null,
         completed: false,
         sort_order,
-      },
-    ];
-    return row;
-  });
+      };
+      sortBase = [
+        ...sortBase,
+        {
+          id: "",
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          notes: ing.notes,
+          category_id: null,
+          completed: false,
+          sort_order,
+        },
+      ];
+      return row;
+    });
 
-  const { error: insertError } = await supabase
-    .from("shopping_items")
-    .insert(rows);
+    if (rows.length === 0) return { merged: 0, added: 0, total: 0 };
 
-  if (insertError) throw insertError;
-  return rows.length;
+    const { error: insertError } = await supabase
+      .from("shopping_items")
+      .insert(rows);
+
+    if (insertError) throw insertError;
+    return { merged: 0, added: rows.length, total: rows.length };
+  }
+
+  const plan = planExportMerge(existingItems, filtered, (base) =>
+    getNextSortOrderFromItems(base, null, false)
+  );
+
+  for (const update of plan.updates) {
+    const { error } = await supabase
+      .from("shopping_items")
+      .update({ quantity: update.quantity, notes: update.notes })
+      .eq("id", update.id);
+    if (error) throw error;
+  }
+
+  if (plan.inserts.length > 0) {
+    const rows = plan.inserts.map((row) => ({
+      shopping_list_id: listId,
+      name: row.name,
+      quantity: row.quantity,
+      unit: row.unit,
+      notes: row.notes,
+      category_id: row.category_id,
+      completed: row.completed,
+      sort_order: row.sort_order,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("shopping_items")
+      .insert(rows);
+
+    if (insertError) throw insertError;
+  }
+
+  return {
+    merged: plan.merged,
+    added: plan.added,
+    total: plan.merged + plan.added,
+  };
 }

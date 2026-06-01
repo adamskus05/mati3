@@ -35,11 +35,12 @@ export async function createListAndExportRecipe(
 
   if (listError) throw listError;
 
-  const itemCount = await exportRecipeToList(
+  const result = await exportRecipeToList(
     supabase,
     recipeId,
     list.id,
-    ingredientOverrides
+    ingredientOverrides,
+    { mergeWithExisting: false }
   );
-  return { listId: list.id, itemCount };
+  return { listId: list.id, itemCount: result.total };
 }

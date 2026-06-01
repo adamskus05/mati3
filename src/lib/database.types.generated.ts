@@ -116,6 +116,54 @@ export type Database = {
           },
         ]
       }
+      household_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          household_id: string
+          id: string
+          metadata: Json
+          resource_id: string | null
+          resource_type: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          household_id: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          household_id?: string
+          id?: string
+          metadata?: Json
+          resource_id?: string | null
+          resource_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_audit_log_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       household_join_attempts: {
         Row: {
           attempt_count: number
@@ -772,6 +820,14 @@ export type Database = {
       remove_household_member: {
         Args: { p_household_id: string; p_user_id: string }
         Returns: undefined
+      }
+      search_household: {
+        Args: {
+          p_household_id: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: Json
       }
       renew_household_invite_code: {
         Args: { p_household_id: string }

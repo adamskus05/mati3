@@ -44,6 +44,9 @@ export const QUERY_KEYS = {
   recipe: (id: string) => ["recipe", id] as const,
   profile: ["profile"] as const,
   events: (id: string) => ["events", id] as const,
+  auditLog: (id: string) => ["auditLog", id] as const,
+  search: (householdId: string, query: string) =>
+    ["search", householdId, query] as const,
   myMembership: (householdId: string, userId: string) =>
     ["myMembership", householdId, userId] as const,
   signupRequests: (status?: string) =>

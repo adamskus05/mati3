@@ -10,6 +10,7 @@
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked > src/lib/database.types.generated.ts",
     "db:types:local": "supabase gen types typescript --local > src/lib/database.types.generated.ts",
+    "setup:edge": "bash scripts/setup-supabase-edge.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "icons:generate": "python3 scripts/generate-icons.py"

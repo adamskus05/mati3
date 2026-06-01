@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchArchivedLists } from "@/lib/queries/lists";
 import { QUERY_KEYS } from "@/lib/constants";
 import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { ListsSkeleton } from "@/components/lists/lists-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 import type { ShoppingListWithCreator } from "@/lib/database.types";
 
@@ -53,9 +54,11 @@ export function HistoryView({ householdId }: { householdId: string }) {
       {listsPending ? (
         <ListsSkeleton />
       ) : lists.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Inga arkiverade listor
-        </p>
+        <EmptyState
+          icon={History}
+          title="Inga arkiverade listor"
+          description="När ni arkiverar en inköpslista dyker den upp här."
+        />
       ) : (
         <ul className="space-y-1.5">
           {lists.map((list) => (

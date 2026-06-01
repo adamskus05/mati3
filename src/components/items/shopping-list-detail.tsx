@@ -14,7 +14,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { QUERY_KEYS, LAST_CATEGORY_KEY } from "@/lib/constants";
 import {
@@ -36,6 +36,7 @@ import type {
   ShoppingListWithCreator,
 } from "@/lib/database.types";
 import { ListAddToolbar } from "@/components/items/list-add-toolbar";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const ItemFormDialog = dynamic(
   () =>
@@ -627,14 +628,30 @@ export function ShoppingListDetail({
         )}
 
         {!itemsPending && filteredItems.length === 0 && (
-          <p
-            className={cn(
-              "text-center text-muted-foreground",
-              readOnly ? "py-4 text-sm" : "py-12 text-sm"
-            )}
-          >
-            {search || hideCompleted ? "Inga träffar" : "Listan är tom"}
-          </p>
+          search || hideCompleted ? (
+            <p
+              className={cn(
+                "text-center text-muted-foreground",
+                readOnly ? "py-4 text-sm" : "py-12 text-sm"
+              )}
+            >
+              Inga träffar
+            </p>
+          ) : readOnly ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Listan är tom
+            </p>
+          ) : (
+            <EmptyState
+              icon={ShoppingCart}
+              title="Listan är tom"
+              description="Lägg till varor ni ska handla."
+              primaryAction={{
+                label: "Lägg till vara",
+                onClick: () => setAddOpen(true),
+              }}
+            />
+          )
         )}
       </div>
 

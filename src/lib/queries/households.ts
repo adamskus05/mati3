@@ -176,3 +176,74 @@ export async function fetchHouseholdEvents(
     };
   });
 }
+
+export type HouseholdAuditEntry = {
+  id: string;
+  household_id: string;
+  actor_id: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  actor: { display_name: string | null; email: string } | null;
+};
+
+export async function fetchHouseholdAuditLog(
+  supabase: SupabaseClient,
+  householdId: string,
+  limit = 100
+): Promise<HouseholdAuditEntry[]> {
+  const { data, error } = await supabase
+    .from("household_audit_log")
+    .select(
+      `
+      id,
+      household_id,
+      actor_id,
+      action,
+      resource_type,
+      resource_id,
+      metadata,
+      created_at,
+      profiles ( display_name, email )
+    `
+    )
+    .eq("household_id", householdId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (isSchemaMissingError(error)) return [];
+    throw error;
+  }
+
+  return (data ?? []).map((row) => {
+    const r = row as {
+      id: string;
+      household_id: string;
+      actor_id: string | null;
+      action: string;
+      resource_type: string | null;
+      resource_id: string | null;
+      metadata: Record<string, unknown>;
+      created_at: string;
+      profiles:
+        | { display_name: string | null; email: string }
+        | { display_name: string | null; email: string }[]
+        | null;
+    };
+    const actor = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    return {
+      id: r.id,
+      household_id: r.household_id,
+      actor_id: r.actor_id,
+      action: r.action,
+      resource_type: r.resource_type,
+      resource_id: r.resource_id,
+      metadata: r.metadata ?? {},
+      created_at: r.created_at,
+      actor: actor ?? null,
+    };
+  });
+}

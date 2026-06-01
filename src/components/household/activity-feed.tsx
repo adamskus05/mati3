@@ -7,6 +7,15 @@ import { fetchHouseholdEvents, fetchMembers } from "@/lib/queries/households";
 import { QUERY_KEYS } from "@/lib/constants";
 import { formatHouseholdEvent } from "@/lib/household/event-labels";
 import { isSchemaMissingError } from "@/lib/household/roles";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Activity } from "lucide-react";
+
+/** Shown in audit log instead of the activity feed (legacy rows may still exist). */
+const AUDIT_ONLY_EVENT_TYPES = new Set([
+  "member_removed",
+  "invite_code_renewed",
+  "ownership_transferred",
+]);
 
 export function ActivityFeed({
   householdId,
@@ -64,17 +73,23 @@ export function ActivityFeed({
     );
   }
 
-  if (events.length === 0) {
+  const visibleEvents = events.filter(
+    (e) => !AUDIT_ONLY_EVENT_TYPES.has(e.event_type)
+  );
+
+  if (visibleEvents.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-muted-foreground">
-        Ingen aktivitet ännu
-      </p>
+      <EmptyState
+        icon={Activity}
+        title="Ingen aktivitet ännu"
+        description="Här visas när någon skapar listor, handlar eller går med i hushållet."
+      />
     );
   }
 
   return (
     <ul className="divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
-      {events.map((event) => (
+      {visibleEvents.map((event) => (
         <li key={event.id} className="px-3 py-2.5">
           <p className="text-sm leading-snug">
             {formatHouseholdEvent(

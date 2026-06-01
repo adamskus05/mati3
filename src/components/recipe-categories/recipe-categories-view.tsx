@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Pencil, Trash2, ChefHat } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
 import { QUERY_KEYS, CATEGORY_COLORS } from "@/lib/constants";
@@ -40,6 +40,7 @@ import { DeleteRecipeCategoryDialog } from "@/components/recipe-categories/delet
 import { CategoriesSkeleton } from "@/components/categories/categories-skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function SortableRecipeCategory({
   category,
@@ -347,9 +348,20 @@ export function RecipeCategoriesView({
       {categoriesPending ? (
         <CategoriesSkeleton />
       ) : categories.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Inga receptkategorier ännu. Skapa t.ex. Frukost, Lunch eller Middag.
-        </p>
+        <EmptyState
+          icon={ChefHat}
+          title="Inga receptkategorier ännu"
+          description="Skapa t.ex. Frukost, Lunch eller Middag."
+          primaryAction={{
+            label: "Skapa kategori",
+            onClick: () => {
+              setEditCat(null);
+              setName("");
+              setColor(CATEGORY_COLORS[0]);
+              setOpen(true);
+            },
+          }}
+        />
       ) : (
         <DndContext
           sensors={sensors}

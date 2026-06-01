@@ -32,7 +32,7 @@ import { useOnline } from "@/hooks/use-online";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, ChevronRight, Pencil, Trash2, GripVertical } from "lucide-react";
+import {
+  Plus,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  GripVertical,
+  ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 import { ListsSkeleton } from "@/components/lists/lists-skeleton";
@@ -410,11 +417,15 @@ export function ListsView({ householdId }: { householdId: string }) {
       {listsPending ? (
         <ListsSkeleton />
       ) : lists.length === 0 ? (
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Inga listor ännu. Skapa din första!
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ShoppingBag}
+          title="Inga listor ännu"
+          description="Skapa en inköpslista för hushållet."
+          primaryAction={{
+            label: "Skapa lista",
+            onClick: () => setOpen(true),
+          }}
+        />
       ) : (
         <DndContext
           sensors={sensors}
