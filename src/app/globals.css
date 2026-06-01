@@ -202,18 +202,21 @@
   position: sticky;
   bottom: 0;
   z-index: 40;
+  flex: 0 0 auto;
   flex-shrink: 0;
   box-sizing: border-box;
   padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
   overflow: hidden;
+  contain: layout size style;
 }
 
 .app-bottom-nav__bar {
   height: var(--mati-nav-bar-content);
   min-height: var(--mati-nav-bar-content);
   max-height: var(--mati-nav-bar-content);
+  flex: 0 0 var(--mati-nav-bar-content);
   box-sizing: border-box;
   overflow: hidden;
 }
