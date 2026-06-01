@@ -183,47 +183,45 @@
   contain-intrinsic-size: auto 120px;
 }
 
-/* Shell height = visible viewport (set in boot script + useLockedSafeArea; not raw dvh on iOS) */
+/* Full-height shell; scroll lives in main. Bottom nav is fixed so the keyboard cannot squash it. */
 .app-shell {
-  height: var(--mati-app-height, 100svh);
-  max-height: var(--mati-app-height, 100svh);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  min-height: 100dvh;
 }
 
 @supports (height: 100dvh) {
   .app-shell {
-    height: var(--mati-app-height, 100dvh);
-    max-height: var(--mati-app-height, 100dvh);
+    min-height: 100dvh;
   }
 }
 
-/* Tab bar sticky at viewport bottom — same on every tab regardless of content height */
+/* Fixed tab bar — constant size; not part of the flex height budget */
 .app-bottom-nav {
-  position: sticky;
+  position: fixed;
   bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 40;
-  flex: 0 0 auto;
-  flex-shrink: 0;
   box-sizing: border-box;
   padding-bottom: var(--mati-safe-bottom);
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
-  overflow: hidden;
-  contain: layout size style;
 }
 
 .app-bottom-nav__bar {
   height: var(--mati-nav-bar-content);
   min-height: var(--mati-nav-bar-content);
   max-height: var(--mati-nav-bar-content);
-  flex: 0 0 var(--mati-nav-bar-content);
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .app-main-scroll {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
+  padding-bottom: var(--mati-bottom-nav-total);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;

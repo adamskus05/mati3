@@ -69,7 +69,7 @@ export function AppShell({
   }, [householdId, router, queryClient]);
 
   return (
-    <div className="app-shell flex flex-col bg-background">
+    <div className="app-shell bg-background">
       <OfflineBanner />
       <header className="sticky top-0 z-40 shrink-0 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between mati-page-x py-3">
@@ -95,7 +95,7 @@ export function AppShell({
         {children}
       </main>
 
-      <nav className="app-bottom-nav shrink-0" aria-label="Huvudnavigering">
+      <nav className="app-bottom-nav" aria-label="Huvudnavigering">
         <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active =
