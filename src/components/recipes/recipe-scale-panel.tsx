@@ -19,6 +19,10 @@ export function RecipeScalePanel({
   onAnchorIdChange,
   onNewQuantityChange,
   onReset,
+  hasSavedPreset,
+  onSavePreset,
+  onClearSavedPreset,
+  savingPreset,
 }: {
   ingredients: RecipeIngredient[];
   anchorId: string | null;
@@ -26,6 +30,10 @@ export function RecipeScalePanel({
   onAnchorIdChange: (id: string) => void;
   onNewQuantityChange: (value: string) => void;
   onReset: () => void;
+  hasSavedPreset?: boolean;
+  onSavePreset?: () => void;
+  onClearSavedPreset?: () => void;
+  savingPreset?: boolean;
 }) {
   const scalable = useMemo(
     () => ingredientsWithQuantity(ingredients),
@@ -53,8 +61,8 @@ export function RecipeScalePanel({
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        Välj en ingrediens som bas — övriga mängder räknas om tillfälligt (sparas inte i
-        receptet).
+        Välj en ingrediens som bas — övriga mängder räknas om. Basreceptet ändras inte;
+        du kan spara skalan som standard för hela hushållet.
       </p>
       <div className="space-y-2">
         <Label htmlFor="scaleAnchor">Bas-ingrediens</Label>
@@ -89,14 +97,39 @@ export function RecipeScalePanel({
         )}
       </div>
       {scalePreview.factor != null && (
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-full"
+            onClick={onReset}
+          >
+            Återställ originalmängder
+          </Button>
+          {onSavePreset && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 w-full"
+              disabled={savingPreset}
+              onClick={onSavePreset}
+            >
+              {savingPreset ? "Sparar…" : "Spara som standard för hushållet"}
+            </Button>
+          )}
+        </div>
+      )}
+      {hasSavedPreset && onClearSavedPreset && (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           className="h-8 w-full"
-          onClick={onReset}
+          disabled={savingPreset}
+          onClick={onClearSavedPreset}
         >
-          Återställ originalmängder
+          Rensa sparad standard
         </Button>
       )}
     </div>

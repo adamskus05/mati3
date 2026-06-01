@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -98,11 +98,36 @@ export function RecipeEditor({
     staleTime: 60_000,
   });
 
+  const autoImportDone = useRef(false);
+
   useEffect(() => {
     if (!isEdit && searchParams.get("import") === "1") {
       document.getElementById("recipeImportUrl")?.focus();
     }
   }, [isEdit, searchParams]);
+
+  useEffect(() => {
+    const paramUrl = searchParams.get("importUrl")?.trim();
+    if (isEdit || !paramUrl || autoImportDone.current) return;
+    setImportUrl(paramUrl);
+  }, [isEdit, searchParams]);
+
+  useEffect(() => {
+    const paramUrl = searchParams.get("importUrl")?.trim();
+    if (
+      isEdit ||
+      !paramUrl ||
+      autoImportDone.current ||
+      !online ||
+      importUrl.trim() !== paramUrl ||
+      importing
+    ) {
+      return;
+    }
+    autoImportDone.current = true;
+    void handleImportUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per share deep-link
+  }, [importUrl, isEdit, online, importing, searchParams]);
 
   useEffect(() => {
     if (!recipe) return;
@@ -306,6 +331,8 @@ export function RecipeEditor({
       created_by: userId,
       created_at: now,
       updated_at: now,
+      scale_anchor_ingredient_id: null,
+      scale_new_quantity: null,
     };
     queryClient.setQueryData<RecipeWithCategory[]>(recipesKey, (old) => [
       optimisticNew,

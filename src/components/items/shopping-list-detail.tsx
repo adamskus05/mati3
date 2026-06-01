@@ -29,6 +29,13 @@ import { fetchList } from "@/lib/queries/lists";
 import { fetchCategories } from "@/lib/queries/categories";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { enqueueMutation } from "@/lib/offline/mutation-queue";
+import { findListDuplicate } from "@/lib/items/find-list-duplicate";
+import {
+  canMergeUnits,
+  mergeItemNotes,
+  mergeQuantities,
+} from "@/lib/items/merge-export-ingredients";
+import { DuplicateItemDialog } from "@/components/items/duplicate-item-dialog";
 import type {
   Category,
   ItemPreset,
@@ -76,6 +83,10 @@ export function ShoppingListDetail({
   const [addDraftCategory, setAddDraftCategory] = useState("none");
   const [addCategoryId, setAddCategoryId] = useState("none");
   const [editItem, setEditItem] = useState<ShoppingItemWithCompleter | null>(null);
+  const [duplicatePending, setDuplicatePending] = useState<{
+    name: string;
+    match: ShoppingItemWithCompleter;
+  } | null>(null);
 
   useListItemsRealtime(listId);
 
@@ -279,7 +290,67 @@ export function ShoppingListDetail({
       });
   }
 
-  function quickAdd(name: string) {
+  function mergeIntoExisting(
+    existing: ShoppingItemWithCompleter,
+    incoming: {
+      quantity: number | null;
+      unit: string | null;
+      notes: string | null;
+    }
+  ) {
+    const quantity = mergeQuantities(existing.quantity, incoming.quantity);
+    const notes = mergeItemNotes(existing.notes, incoming.notes);
+    const payload = { quantity, notes };
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId)
+    );
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) =>
+        old?.map((i) => (i.id === existing.id ? { ...i, ...payload } : i))
+    );
+    if (!online) {
+      void enqueueMutation({
+        type: "update_item",
+        listId,
+        itemId: existing.id,
+        payload: {
+          name: existing.name,
+          category_id: existing.category_id,
+          unit: existing.unit,
+          ...payload,
+        },
+      });
+      return;
+    }
+    void createClient()
+      .from("shopping_items")
+      .update(payload)
+      .eq("id", existing.id)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        }
+      });
+  }
+
+  function quickAdd(name: string, skipDuplicateCheck = false) {
+    if (readOnly) return;
+    if (!skipDuplicateCheck) {
+      const match = findListDuplicate(items, name, null);
+      if (match) {
+        const full = items.find((i) => i.id === match.id);
+        if (full) {
+          setDuplicatePending({ name, match: full });
+          return;
+        }
+      }
+    }
+    executeQuickAdd(name);
+  }
+
+  function executeQuickAdd(name: string) {
     if (readOnly) return;
     const categoryId = addCategoryId === "none" ? null : addCategoryId;
     setLastCategoryId(categoryId);
@@ -324,6 +395,7 @@ export function ShoppingListDetail({
       void enqueueMutation({
         type: "add_item",
         listId,
+        clientId: tempId,
         payload: { name, category_id: categoryId, sort_order },
       });
       return;
@@ -358,7 +430,7 @@ export function ShoppingListDetail({
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    if (readOnly || !online || selectMode) return;
+    if (readOnly || selectMode) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -389,13 +461,23 @@ export function ShoppingListDetail({
         )
     );
 
+    const updates = reordered.map((item, index) => ({
+      itemId: item.id,
+      sort_order: index,
+    }));
+
+    if (!online) {
+      void enqueueMutation({ type: "reorder_items", listId, updates });
+      return;
+    }
+
     const supabase = createClient();
     const results = await Promise.all(
-      reordered.map((item, index) =>
+      updates.map((u) =>
         supabase
           .from("shopping_items")
-          .update({ sort_order: index })
-          .eq("id", item.id)
+          .update({ sort_order: u.sort_order })
+          .eq("id", u.itemId)
       )
     );
     if (results.some((r) => r.error)) {
@@ -430,10 +512,6 @@ export function ShoppingListDetail({
   }
 
   async function bulkMoveCategory(categoryId: string | null) {
-    if (!online) {
-      toast.error("Kräver anslutning");
-      return;
-    }
     const ids = [...selectedIds];
     const itemsKey = QUERY_KEYS.items(listId);
     const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(itemsKey);
@@ -445,6 +523,16 @@ export function ShoppingListDetail({
     setLastCategoryId(categoryId);
     setSelectedIds(new Set());
     setSelectMode(false);
+
+    if (!online) {
+      void enqueueMutation({
+        type: "bulk_update_category",
+        listId,
+        itemIds: ids,
+        category_id: categoryId,
+      });
+      return;
+    }
 
     const { error } = await createClient()
       .from("shopping_items")
@@ -671,10 +759,41 @@ export function ShoppingListDetail({
 
       {!readOnly && (
         <>
+          <DuplicateItemDialog
+            open={duplicatePending !== null}
+            itemName={duplicatePending?.name ?? ""}
+            existingName={duplicatePending?.match.name ?? ""}
+            canMerge={
+              duplicatePending
+                ? canMergeUnits(duplicatePending.match.unit, null)
+                : false
+            }
+            onOpenChange={(open) => {
+              if (!open) setDuplicatePending(null);
+            }}
+            onAddAnyway={() => {
+              if (!duplicatePending) return;
+              const { name } = duplicatePending;
+              setDuplicatePending(null);
+              executeQuickAdd(name);
+            }}
+            onMerge={() => {
+              if (!duplicatePending) return;
+              const { name, match } = duplicatePending;
+              setDuplicatePending(null);
+              mergeIntoExisting(match, {
+                quantity: null,
+                unit: null,
+                notes: name.trim() !== match.name.trim() ? name : null,
+              });
+              toast.success("Slaget ihop med befintlig vara");
+            }}
+          />
           <ItemFormDialog
             open={addOpen}
             onOpenChange={setAddOpen}
             listId={listId}
+            listItems={items}
             categories={categories}
             initialName={addDraftName}
             initialCategoryId={addDraftCategory}
@@ -689,6 +808,7 @@ export function ShoppingListDetail({
             open={!!editItem}
             onOpenChange={(o) => !o && setEditItem(null)}
             listId={listId}
+            listItems={items}
             categories={categories}
             item={editItem ?? undefined}
             onSuccess={() => setEditItem(null)}

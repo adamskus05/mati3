@@ -11,6 +11,17 @@ import type {
   ShoppingItem,
   ShoppingItemWithCompleter,
 } from "@/lib/database.types";
+import {
+  enqueueMutation,
+  isPendingSyncItemId,
+} from "@/lib/offline/mutation-queue";
+import { findListDuplicate } from "@/lib/items/find-list-duplicate";
+import {
+  canMergeUnits,
+  mergeItemNotes,
+  mergeQuantities,
+} from "@/lib/items/merge-export-ingredients";
+import { DuplicateItemDialog } from "@/components/items/duplicate-item-dialog";
 import { CategoryPicker } from "@/components/categories/category-picker";
 import {
   Sheet,
@@ -30,6 +41,7 @@ export function ItemFormDialog({
   open,
   onOpenChange,
   listId,
+  listItems,
   categories,
   item,
   initialName = "",
@@ -39,6 +51,7 @@ export function ItemFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   listId: string;
+  listItems: ShoppingItemWithCompleter[];
   categories: Category[];
   item?: ShoppingItem;
   initialName?: string;
@@ -54,6 +67,16 @@ export function ItemFormDialog({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
+  const [duplicatePending, setDuplicatePending] = useState<{
+    payload: {
+      name: string;
+      quantity: number | null;
+      unit: string | null;
+      category_id: string | null;
+      notes: string | null;
+    };
+    match: ShoppingItemWithCompleter;
+  } | null>(null);
 
   useEffect(() => {
     if (item) {
@@ -77,13 +100,155 @@ export function ItemFormDialog({
     }
   }, [item, open, initialName, initialCategoryId]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function mergeIntoExisting(
+    existing: ShoppingItemWithCompleter,
+    incoming: {
+      name: string;
+      quantity: number | null;
+      unit: string | null;
+      category_id: string | null;
+      notes: string | null;
+    }
+  ) {
+    const mergedQty = mergeQuantities(existing.quantity, incoming.quantity);
+    const mergedNotes = mergeItemNotes(existing.notes, incoming.notes);
+    const updatePayload = {
+      name: existing.name,
+      category_id: existing.category_id,
+      quantity: mergedQty,
+      unit: existing.unit,
+      notes: mergedNotes,
+    };
+    const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId)
+    );
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) =>
+        old?.map((i) =>
+          i.id === existing.id ? { ...i, ...updatePayload } : i
+        )
+    );
+    onOpenChange(false);
+    onSuccess(existing.category_id);
     if (!online) {
-      toast.error("Ingen anslutning");
+      void enqueueMutation({
+        type: "update_item",
+        listId,
+        itemId: existing.id,
+        payload: updatePayload,
+      });
+      toast.success("Slaget ihop med befintlig vara");
       return;
     }
+    void createClient()
+      .from("shopping_items")
+      .update({ quantity: mergedQty, notes: mergedNotes })
+      .eq("id", existing.id)
+      .then(({ error }) => {
+        if (error) {
+          toast.error(error.message);
+          queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        } else {
+          toast.success("Slaget ihop med befintlig vara");
+        }
+      });
+  }
+
+  function commitCreate(
+    payload: {
+      name: string;
+      quantity: number | null;
+      unit: string | null;
+      category_id: string | null;
+      notes: string | null;
+    },
+    skipDuplicateCheck = false
+  ) {
+    if (!skipDuplicateCheck) {
+      const match = findListDuplicate(listItems, payload.name, payload.unit);
+      if (match) {
+        const full = listItems.find((i) => i.id === match.id);
+        if (full) {
+          setDuplicatePending({ payload, match: full });
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    const cached =
+      queryClient.getQueryData<ShoppingItemWithCompleter[]>(
+        QUERY_KEYS.items(listId)
+      ) ?? [];
+    const sort_order = getNextSortOrderFromItems(cached, payload.category_id, false);
+    const tempId = `optimistic-${crypto.randomUUID()}`;
+    const optimistic = {
+      id: tempId,
+      shopping_list_id: listId,
+      ...payload,
+      completed: false,
+      sort_order,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      completed_by: null,
+      completed_at: null,
+      completer: null,
+    } as ShoppingItemWithCompleter;
+    const previous = cached;
+    queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+      QUERY_KEYS.items(listId),
+      (old) => [...(old ?? []), optimistic]
+    );
+    onOpenChange(false);
+
+    if (!online) {
+      setLoading(false);
+      void enqueueMutation({
+        type: "add_item",
+        listId,
+        clientId: tempId,
+        payload: { ...payload, sort_order },
+      });
+      onSuccess(payload.category_id);
+      return;
+    }
+
+    void createClient()
+      .from("shopping_items")
+      .insert({
+        shopping_list_id: listId,
+        ...payload,
+        sort_order,
+      })
+      .select()
+      .single()
+      .then(({ data, error }) => {
+        setLoading(false);
+        if (error) {
+          toast.error(error.message);
+          queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
+        } else if (data) {
+          queryClient.setQueryData<ShoppingItemWithCompleter[]>(
+            QUERY_KEYS.items(listId),
+            (old) =>
+              old?.map((i) =>
+                i.id === tempId ? { ...data, completer: null } : i
+              )
+          );
+          onSuccess(payload.category_id);
+        }
+      });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     if (!name.trim()) return;
+
+    if (item && isPendingSyncItemId(item.id) && !online) {
+      toast.error("Varan synkas fortfarande – försök igen om en stund");
+      return;
+    }
 
     setLoading(true);
     const supabase = createClient();
@@ -107,6 +272,19 @@ export function ItemFormDialog({
         QUERY_KEYS.items(listId),
         (old) => old?.map((i) => (i.id === item.id ? { ...i, ...payload } : i))
       );
+
+      if (!online) {
+        setLoading(false);
+        void enqueueMutation({
+          type: "update_item",
+          listId,
+          itemId: item.id,
+          payload,
+        });
+        onSuccess(catId);
+        return;
+      }
+
       const { error } = await supabase
         .from("shopping_items")
         .update(payload)
@@ -117,58 +295,44 @@ export function ItemFormDialog({
         queryClient.setQueryData(QUERY_KEYS.items(listId), previous);
       } else onSuccess(catId);
     } else {
-      const sort_order = getNextSortOrderFromItems(cached, catId, false);
-      const tempId = `optimistic-${crypto.randomUUID()}`;
-      const optimistic = {
-        id: tempId,
-        shopping_list_id: listId,
-        ...payload,
-        completed: false,
-        sort_order,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        completed_by: null,
-        completed_at: null,
-        completer: null,
-      } as ShoppingItemWithCompleter;
-      queryClient.setQueryData<ShoppingItemWithCompleter[]>(
-        QUERY_KEYS.items(listId),
-        (old) => [...(old ?? []), optimistic]
-      );
-      onOpenChange(false);
-
-      const { data, error } = await supabase
-        .from("shopping_items")
-        .insert({
-          shopping_list_id: listId,
-          ...payload,
-          sort_order,
-        })
-        .select()
-        .single();
-      setLoading(false);
-      if (error) {
-        toast.error(error.message);
-        queryClient.setQueryData<ShoppingItemWithCompleter[]>(
-          QUERY_KEYS.items(listId),
-          (old) => old?.filter((i) => i.id !== tempId)
-        );
-      } else if (data) {
-        queryClient.setQueryData<ShoppingItemWithCompleter[]>(
-          QUERY_KEYS.items(listId),
-          (old) =>
-            old?.map((i) =>
-              i.id === tempId ? { ...data, completer: null } : i
-            )
-        );
-        onSuccess(catId);
-      }
+      commitCreate(payload);
     }
   }
 
   if (!open) return null;
 
   return (
+    <>
+      <DuplicateItemDialog
+        open={duplicatePending !== null}
+        itemName={duplicatePending?.payload.name ?? ""}
+        existingName={duplicatePending?.match.name ?? ""}
+        canMerge={
+          duplicatePending
+            ? canMergeUnits(
+                duplicatePending.match.unit,
+                duplicatePending.payload.unit
+              )
+            : false
+        }
+        onOpenChange={(o) => {
+          if (!o) setDuplicatePending(null);
+        }}
+        onAddAnyway={() => {
+          if (!duplicatePending) return;
+          const { payload } = duplicatePending;
+          setDuplicatePending(null);
+          setLoading(true);
+          commitCreate(payload, true);
+        }}
+        onMerge={() => {
+          if (!duplicatePending) return;
+          const { payload, match } = duplicatePending;
+          setDuplicatePending(null);
+          setLoading(false);
+          mergeIntoExisting(match, payload);
+        }}
+      />
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
@@ -291,5 +455,6 @@ export function ItemFormDialog({
         </form>
       </SheetContent>
     </Sheet>
+    </>
   );
 }

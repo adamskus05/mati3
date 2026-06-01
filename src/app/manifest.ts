@@ -6,6 +6,15 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Mati",
     description: "Gemensamma inköpslistor för hushållet",
     start_url: "/",
+    share_target: {
+      action: "/share",
+      method: "GET",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
     display: "standalone",
     background_color: "#F0F4EF",
     theme_color: "#F0F4EF",

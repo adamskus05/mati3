@@ -50,6 +50,8 @@ In [Supabase Dashboard](https://supabase.com/dashboard/project/chfarvaiabixaxcyl
 
 The Next route `/api/push/send` remains as a fallback proxy during migration.
 
+See **[push-verification.md](./push-verification.md)** for curl tests, SQL checks, and the end-to-end checklist (two users, webhook, expected `sent` count).
+
 ## Types after migrations
 
 ```bash

@@ -474,6 +474,8 @@ export type Database = {
           image_url: string | null
           instructions: Json
           recipe_category_id: string | null
+          scale_anchor_ingredient_id: string | null
+          scale_new_quantity: number | null
           source_url: string | null
           title: string
           updated_at: string
@@ -486,6 +488,8 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           recipe_category_id?: string | null
+          scale_anchor_ingredient_id?: string | null
+          scale_new_quantity?: number | null
           source_url?: string | null
           title: string
           updated_at?: string
@@ -498,6 +502,8 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           recipe_category_id?: string | null
+          scale_anchor_ingredient_id?: string | null
+          scale_new_quantity?: number | null
           source_url?: string | null
           title?: string
           updated_at?: string

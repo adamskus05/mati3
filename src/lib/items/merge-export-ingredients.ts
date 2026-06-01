@@ -95,7 +95,7 @@ export function mergeQuantities(
   return existing ?? incoming;
 }
 
-function mergeNotes(
+export function mergeItemNotes(
   existing: string | null,
   incoming: string | null
 ): string | null {
@@ -136,7 +136,7 @@ export function planExportMerge(
 
     if (match && canMergeUnits(match.unit, ing.unit)) {
       const quantity = mergeQuantities(match.quantity, ing.quantity);
-      const notes = mergeNotes(match.notes, ing.notes);
+      const notes = mergeItemNotes(match.notes, ing.notes);
       updates.push({ id: match.id, quantity, notes });
       match.quantity = quantity;
       match.notes = notes;

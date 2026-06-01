@@ -73,7 +73,7 @@ npm run dev
 
 1. Importera repot till Vercel.
 2. Lägg till `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` och `SUPABASE_SERVICE_ROLE_KEY`.
-3. För push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` (samma secret som Supabase Database Webhook mot `/api/push/send`).
+3. För push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` (samma secret som Database Webhook-header `x-push-secret` mot Edge `push-send`). Se [docs/push-verification.md](docs/push-verification.md).
 4. Uppdatera Supabase redirect URLs med din produktionsdomän.
 5. Bekräfta att **Enable signups** är av i Supabase Auth (se steg 5 ovan).
 

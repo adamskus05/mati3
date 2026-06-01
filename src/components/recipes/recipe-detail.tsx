@@ -57,10 +57,29 @@ export function RecipeDetail({
     () => ingredientsWithQuantity(recipe.recipe_ingredients),
     [recipe.recipe_ingredients]
   );
-  const [anchorId, setAnchorId] = useState<string | null>(
-    () => scalable[0]?.id ?? null
-  );
-  const [newQuantityInput, setNewQuantityInput] = useState("");
+
+  const initialAnchorId = useMemo(() => {
+    const saved = recipe.scale_anchor_ingredient_id;
+    if (saved && scalable.some((i) => i.id === saved)) return saved;
+    return scalable[0]?.id ?? null;
+  }, [recipe.scale_anchor_ingredient_id, scalable]);
+
+  const [anchorId, setAnchorId] = useState<string | null>(initialAnchorId);
+  const [newQuantityInput, setNewQuantityInput] = useState(() => {
+    if (
+      recipe.scale_new_quantity != null &&
+      recipe.scale_anchor_ingredient_id &&
+      scalable.some((i) => i.id === recipe.scale_anchor_ingredient_id)
+    ) {
+      return String(recipe.scale_new_quantity);
+    }
+    return "";
+  });
+  const [savingPreset, setSavingPreset] = useState(false);
+
+  const hasSavedPreset =
+    recipe.scale_anchor_ingredient_id != null &&
+    recipe.scale_new_quantity != null;
 
   const scaleResult = useRecipeIngredientScale(
     recipe.recipe_ingredients,
@@ -89,6 +108,62 @@ export function RecipeDetail({
   function handleResetScale() {
     setNewQuantityInput("");
     setAnchorId(scalable[0]?.id ?? null);
+  }
+
+  async function handleSaveScalePreset() {
+    if (!online) {
+      toast.error("Ingen anslutning");
+      return;
+    }
+    const parsed = parseFloat(newQuantityInput.replace(",", "."));
+    if (!anchorId || !Number.isFinite(parsed) || parsed <= 0) {
+      toast.error("Välj bas-ingrediens och ange en giltig ny mängd");
+      return;
+    }
+    setSavingPreset(true);
+    const { error } = await createClient()
+      .from("recipes")
+      .update({
+        scale_anchor_ingredient_id: anchorId,
+        scale_new_quantity: parsed,
+      })
+      .eq("id", recipe.id);
+    setSavingPreset(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.recipes(householdId),
+    });
+    toast.success("Portionsskala sparad för hushållet");
+    router.refresh();
+  }
+
+  async function handleClearScalePreset() {
+    if (!online) {
+      toast.error("Ingen anslutning");
+      return;
+    }
+    setSavingPreset(true);
+    const { error } = await createClient()
+      .from("recipes")
+      .update({
+        scale_anchor_ingredient_id: null,
+        scale_new_quantity: null,
+      })
+      .eq("id", recipe.id);
+    setSavingPreset(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    handleResetScale();
+    await queryClient.invalidateQueries({
+      queryKey: QUERY_KEYS.recipes(householdId),
+    });
+    toast.success("Sparad standard borttagen");
+    router.refresh();
   }
 
   async function handleDelete() {
@@ -214,6 +289,10 @@ export function RecipeDetail({
             onAnchorIdChange={setAnchorId}
             onNewQuantityChange={setNewQuantityInput}
             onReset={handleResetScale}
+            hasSavedPreset={hasSavedPreset}
+            onSavePreset={handleSaveScalePreset}
+            onClearSavedPreset={handleClearScalePreset}
+            savingPreset={savingPreset}
           />
           {recipe.recipe_ingredients.length === 0 ? (
             <p className="text-sm text-muted-foreground">Inga ingredienser</p>

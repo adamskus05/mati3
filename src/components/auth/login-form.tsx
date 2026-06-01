@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") ?? "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,9 @@ export function LoginForm() {
       setError("Fel e-post eller lösenord");
       return;
     }
-    router.push("/");
+    const safeNext =
+      nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/";
+    router.push(safeNext);
     router.refresh();
   }
 
