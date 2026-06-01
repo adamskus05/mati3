@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import type { ExportIngredientRow } from "@/lib/recipes/scale-ingredients";
 
 export function ExportRecipeDialog({
   open,
@@ -27,6 +28,7 @@ export function ExportRecipeDialog({
   recipeId,
   recipeTitle,
   userId,
+  ingredientOverrides,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +36,7 @@ export function ExportRecipeDialog({
   recipeId: string;
   recipeTitle: string;
   userId: string;
+  ingredientOverrides?: ExportIngredientRow[];
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -73,7 +76,8 @@ export function ExportRecipeDialog({
           householdId,
           userId,
           recipeId,
-          newListName.trim()
+          newListName.trim(),
+          ingredientOverrides
         );
         targetListId = result.listId;
         count = result.itemCount;
@@ -86,7 +90,12 @@ export function ExportRecipeDialog({
           setLoading(false);
           return;
         }
-        count = await exportRecipeToList(supabase, recipeId, listId);
+        count = await exportRecipeToList(
+          supabase,
+          recipeId,
+          listId,
+          ingredientOverrides
+        );
       }
 
       void queryClient.invalidateQueries({

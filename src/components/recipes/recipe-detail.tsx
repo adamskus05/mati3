@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,10 @@ import type {
 import { QUERY_KEYS } from "@/lib/constants";
 import { useOnline } from "@/hooks/use-online";
 import { ExportRecipeDialog } from "@/components/recipes/export-recipe-dialog";
+import {
+  RecipeScalePanel,
+  useRecipeIngredientScale,
+} from "@/components/recipes/recipe-scale-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -27,6 +31,11 @@ import {
   groupInstructionSteps,
   MATI_INGREDIENT_LIST_CLASS,
 } from "@/lib/recipes/instruction-format";
+import {
+  formatRecipeQuantity,
+  ingredientsWithQuantity,
+  toExportIngredients,
+} from "@/lib/recipes/scale-ingredients";
 import { toast } from "sonner";
 
 export function RecipeDetail({
@@ -44,10 +53,43 @@ export function RecipeDetail({
   const [exportOpen, setExportOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const scalable = useMemo(
+    () => ingredientsWithQuantity(recipe.recipe_ingredients),
+    [recipe.recipe_ingredients]
+  );
+  const [anchorId, setAnchorId] = useState<string | null>(
+    () => scalable[0]?.id ?? null
+  );
+  const [newQuantityInput, setNewQuantityInput] = useState("");
+
+  const scaleResult = useRecipeIngredientScale(
+    recipe.recipe_ingredients,
+    anchorId,
+    newQuantityInput
+  );
+
+  const displayIngredients = useMemo(() => {
+    const byId = new Map(scaleResult.rows.map((r) => [r.id, r]));
+    return recipe.recipe_ingredients.map(
+      (ing) => byId.get(ing.id) ?? { ...ing, scaledQuantity: ing.quantity, isScaled: false }
+    );
+  }, [recipe.recipe_ingredients, scaleResult.rows]);
+
+  const ingredientGroups = groupIngredientsBySection(displayIngredients);
+
+  const exportOverrides = useMemo(() => {
+    if (scaleResult.factor == null) return undefined;
+    return toExportIngredients(scaleResult.rows);
+  }, [scaleResult]);
+
   const instructionGroups = groupInstructionSteps(
     instructionsFromJson(recipe.instructions)
   );
-  const ingredientGroups = groupIngredientsBySection(recipe.recipe_ingredients);
+
+  function handleResetScale() {
+    setNewQuantityInput("");
+    setAnchorId(scalable[0]?.id ?? null);
+  }
 
   async function handleDelete() {
     if (!online) {
@@ -138,6 +180,9 @@ export function RecipeDetail({
       >
         <ShoppingCart className="h-4 w-4" />
         Exportera till inköpslista
+        {scaleResult.factor != null && (
+          <span className="text-xs opacity-80">(anpassade mängder)</span>
+        )}
       </Button>
 
       <div className="flex gap-2">
@@ -162,6 +207,14 @@ export function RecipeDetail({
       <Card className="rounded-2xl">
         <CardContent className="p-4">
           <h2 className="mb-3 text-sm font-semibold">Ingredienser</h2>
+          <RecipeScalePanel
+            ingredients={recipe.recipe_ingredients}
+            anchorId={anchorId}
+            newQuantityInput={newQuantityInput}
+            onAnchorIdChange={setAnchorId}
+            onNewQuantityChange={setNewQuantityInput}
+            onReset={handleResetScale}
+          />
           {recipe.recipe_ingredients.length === 0 ? (
             <p className="text-sm text-muted-foreground">Inga ingredienser</p>
           ) : (
@@ -175,10 +228,20 @@ export function RecipeDetail({
                   )}
                   <ul className={MATI_INGREDIENT_LIST_CLASS}>
                     {group.items.map((ing) => {
-                      const qty =
-                        ing.quantity != null
-                          ? `${ing.quantity}${ing.unit ? ` ${ing.unit}` : ""}`
+                      const showScaled =
+                        ing.isScaled &&
+                        ing.scaledQuantity != null &&
+                        ing.quantity != null &&
+                        ing.scaledQuantity !== ing.quantity;
+                      const displayQty =
+                        ing.scaledQuantity != null
+                          ? formatRecipeQuantity(ing.scaledQuantity, ing.unit)
                           : ing.unit ?? "";
+                      const originalQty =
+                        ing.quantity != null
+                          ? formatRecipeQuantity(ing.quantity, ing.unit)
+                          : null;
+
                       return (
                         <li
                           key={ing.id}
@@ -186,12 +249,17 @@ export function RecipeDetail({
                         >
                           <span className="flex justify-between gap-2">
                             <span>{ing.name}</span>
-                            {qty && (
-                              <span className="shrink-0 text-muted-foreground">
-                                {qty}
+                            {displayQty && (
+                              <span className="shrink-0 text-right text-muted-foreground">
+                                {displayQty}
                               </span>
                             )}
                           </span>
+                          {showScaled && originalQty && (
+                            <p className="text-right text-xs text-muted-foreground">
+                              urspr. {originalQty}
+                            </p>
+                          )}
                           {ing.notes?.trim() && (
                             <p className="mt-0.5 text-sm text-muted-foreground">
                               {ing.notes}
@@ -241,6 +309,7 @@ export function RecipeDetail({
         recipeId={recipe.id}
         recipeTitle={recipe.title}
         userId={userId}
+        ingredientOverrides={exportOverrides}
       />
     </div>
   );

@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { exportRecipeToList } from "@/lib/recipes/export-to-list";
+import type { ExportIngredientRow } from "@/lib/recipes/scale-ingredients";
 
 export async function createListAndExportRecipe(
   supabase: SupabaseClient,
   householdId: string,
   userId: string | null,
   recipeId: string,
-  listName: string
+  listName: string,
+  ingredientOverrides?: ExportIngredientRow[]
 ): Promise<{ listId: string; itemCount: number }> {
   const { data: lists, error: orderError } = await supabase
     .from("shopping_lists")
@@ -33,6 +35,11 @@ export async function createListAndExportRecipe(
 
   if (listError) throw listError;
 
-  const itemCount = await exportRecipeToList(supabase, recipeId, list.id);
+  const itemCount = await exportRecipeToList(
+    supabase,
+    recipeId,
+    list.id,
+    ingredientOverrides
+  );
   return { listId: list.id, itemCount };
 }

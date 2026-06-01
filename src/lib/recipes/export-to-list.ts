@@ -1,20 +1,37 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getNextSortOrderFromItems } from "@/lib/items/sort-order";
 import type { ShoppingItemWithCompleter } from "@/lib/database.types";
+import type { ExportIngredientRow } from "@/lib/recipes/scale-ingredients";
 
 export async function exportRecipeToList(
   supabase: SupabaseClient,
   recipeId: string,
-  listId: string
+  listId: string,
+  ingredientOverrides?: ExportIngredientRow[]
 ): Promise<number> {
-  const { data: ingredients, error: ingError } = await supabase
-    .from("recipe_ingredients")
-    .select("*")
-    .eq("recipe_id", recipeId)
-    .order("sort_order");
+  let ingredients: ExportIngredientRow[];
 
-  if (ingError) throw ingError;
-  if (!ingredients?.length) return 0;
+  if (ingredientOverrides) {
+    ingredients = ingredientOverrides;
+  } else {
+    const { data, error: ingError } = await supabase
+      .from("recipe_ingredients")
+      .select("*")
+      .eq("recipe_id", recipeId)
+      .order("sort_order");
+
+    if (ingError) throw ingError;
+    if (!data?.length) return 0;
+
+    ingredients = data.map((ing) => ({
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+      notes: ing.notes,
+    }));
+  }
+
+  if (!ingredients.length) return 0;
 
   const { data: existing, error: listError } = await supabase
     .from("shopping_items")
