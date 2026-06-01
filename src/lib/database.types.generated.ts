@@ -74,48 +74,6 @@ export type Database = {
           },
         ]
       }
-      household_events: {
-        Row: {
-          actor_id: string | null
-          created_at: string
-          event_type: string
-          household_id: string
-          id: string
-          metadata: Json
-        }
-        Insert: {
-          actor_id?: string | null
-          created_at?: string
-          event_type: string
-          household_id: string
-          id?: string
-          metadata?: Json
-        }
-        Update: {
-          actor_id?: string | null
-          created_at?: string
-          event_type?: string
-          household_id?: string
-          id?: string
-          metadata?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "household_events_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "household_events_household_id_fkey"
-            columns: ["household_id"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       household_audit_log: {
         Row: {
           action: string
@@ -157,6 +115,48 @@ export type Database = {
           },
           {
             foreignKeyName: "household_audit_log_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          household_id: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          household_id: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          household_id?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_events_household_id_fkey"
             columns: ["household_id"]
             isOneToOne: false
             referencedRelation: "households"
@@ -808,6 +808,17 @@ export type Database = {
         }
       }
       leave_household: { Args: { p_household_id: string }; Returns: undefined }
+      log_household_audit: {
+        Args: {
+          p_action: string
+          p_actor_id?: string
+          p_household_id: string
+          p_metadata?: Json
+          p_resource_id?: string
+          p_resource_type?: string
+        }
+        Returns: undefined
+      }
       log_household_event: {
         Args: {
           p_actor_id?: string
@@ -821,17 +832,13 @@ export type Database = {
         Args: { p_household_id: string; p_user_id: string }
         Returns: undefined
       }
-      search_household: {
-        Args: {
-          p_household_id: string
-          p_limit?: number
-          p_query: string
-        }
-        Returns: Json
-      }
       renew_household_invite_code: {
         Args: { p_household_id: string }
         Returns: string
+      }
+      search_household: {
+        Args: { p_household_id: string; p_limit?: number; p_query: string }
+        Returns: Json
       }
       set_list_shopper: {
         Args: { p_list_id: string }

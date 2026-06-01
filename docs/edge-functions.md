@@ -9,11 +9,14 @@
 
 ## One-command setup (local)
 
-After `npx supabase login` and with `.env.local` filled in:
+After CLI login and with `.env.local` filled in:
 
 ```bash
+npx supabase login   # opens browser; token must be sbp_... (not service role JWT)
 npm run setup:edge
 ```
+
+Do **not** put `SUPABASE_ACCESS_TOKEN` in `.env.local` as the service role or anon JWT — that breaks `supabase secrets set`. The CLI uses the token from `supabase login` only.
 
 This links project `chfarvaiabixaxcylhhr`, sets secrets from `.env.local`, and deploys both functions.
 
