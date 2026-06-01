@@ -53,7 +53,10 @@ export async function fetchRecipe(
     .eq("id", recipeId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    console.error("fetchRecipe failed:", error.message, { recipeId });
+    return null;
+  }
   if (!data) return null;
 
   const row = data as RecipeRowWithJoin;

@@ -20,6 +20,7 @@ export default async function RecipePage({
 
   return (
     <RecipeDetail
+      key={recipe.id}
       householdId={householdId}
       userId={user.id}
       recipe={recipe}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,28 +58,49 @@ export function RecipeDetail({
     [recipe.recipe_ingredients]
   );
 
-  const initialAnchorId = useMemo(() => {
-    const saved = recipe.scale_anchor_ingredient_id;
-    if (saved && scalable.some((i) => i.id === saved)) return saved;
-    return scalable[0]?.id ?? null;
-  }, [recipe.scale_anchor_ingredient_id, scalable]);
-
-  const [anchorId, setAnchorId] = useState<string | null>(initialAnchorId);
-  const [newQuantityInput, setNewQuantityInput] = useState(() => {
+  function getScaleUiState() {
+    const savedAnchor = recipe.scale_anchor_ingredient_id ?? null;
+    const savedQty = recipe.scale_new_quantity;
+    const validAnchor =
+      savedAnchor && scalable.some((i) => i.id === savedAnchor)
+        ? savedAnchor
+        : (scalable[0]?.id ?? null);
+    let qtyInput = "";
     if (
-      recipe.scale_new_quantity != null &&
-      recipe.scale_anchor_ingredient_id &&
-      scalable.some((i) => i.id === recipe.scale_anchor_ingredient_id)
+      savedQty != null &&
+      savedAnchor &&
+      scalable.some((i) => i.id === savedAnchor)
     ) {
-      return String(recipe.scale_new_quantity);
+      const n = Number(savedQty);
+      if (Number.isFinite(n)) qtyInput = String(n);
     }
-    return "";
-  });
+    return { anchorId: validAnchor, newQuantityInput: qtyInput };
+  }
+
+  const [anchorId, setAnchorId] = useState<string | null>(
+    () => getScaleUiState().anchorId
+  );
+  const [newQuantityInput, setNewQuantityInput] = useState(
+    () => getScaleUiState().newQuantityInput
+  );
   const [savingPreset, setSavingPreset] = useState(false);
+
+  useEffect(() => {
+    const next = getScaleUiState();
+    setAnchorId(next.anchorId);
+    setNewQuantityInput(next.newQuantityInput);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when recipe or saved scale changes
+  }, [
+    recipe.id,
+    recipe.scale_anchor_ingredient_id,
+    recipe.scale_new_quantity,
+    recipe.recipe_ingredients,
+  ]);
 
   const hasSavedPreset =
     recipe.scale_anchor_ingredient_id != null &&
-    recipe.scale_new_quantity != null;
+    recipe.scale_new_quantity != null &&
+    scalable.some((i) => i.id === recipe.scale_anchor_ingredient_id);
 
   const scaleResult = useRecipeIngredientScale(
     recipe.recipe_ingredients,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChefHat,
@@ -60,7 +60,6 @@ export function GlobalSearchSheet({
   onOpenChange: (open: boolean) => void;
   householdId: string;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
 
@@ -82,11 +81,6 @@ export function GlobalSearchSheet({
   });
 
   const grouped = useMemo(() => groupResults(results), [results]);
-
-  function navigate(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -128,10 +122,10 @@ export function GlobalSearchSheet({
                     <ul className="overflow-hidden rounded-xl border border-border/60 bg-card">
                       {rows.map((row) => (
                         <li key={`${kind}-${row.id}`}>
-                          <button
-                            type="button"
+                          <Link
+                            href={row.href}
                             className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-muted/50 active:bg-muted"
-                            onClick={() => navigate(row.href)}
+                            onClick={() => onOpenChange(false)}
                           >
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="min-w-0 flex-1">
@@ -144,7 +138,7 @@ export function GlobalSearchSheet({
                                 </span>
                               )}
                             </span>
-                          </button>
+                          </Link>
                         </li>
                       ))}
                     </ul>
