@@ -17,6 +17,12 @@ const RECIPE_SELECT = `
   )
 `;
 
+/** Disambiguate embed after recipes.scale_anchor_ingredient_id FK was added. */
+const RECIPE_INGREDIENTS_EMBED =
+  "recipe_ingredients!recipe_ingredients_recipe_id_fkey(*)";
+
+const RECIPE_WITH_INGREDIENTS_SELECT = `${RECIPE_SELECT}, ${RECIPE_INGREDIENTS_EMBED}`;
+
 type RecipeRowWithJoin = RecipeWithCategory & {
   recipe_ingredients?: RecipeIngredient[];
 };
@@ -49,14 +55,11 @@ export async function fetchRecipe(
 ): Promise<RecipeWithIngredients | null> {
   const { data, error } = await supabase
     .from("recipes")
-    .select(`${RECIPE_SELECT}, recipe_ingredients(*)`)
+    .select(RECIPE_WITH_INGREDIENTS_SELECT)
     .eq("id", recipeId)
     .maybeSingle();
 
-  if (error) {
-    console.error("fetchRecipe failed:", error.message, { recipeId });
-    return null;
-  }
+  if (error) throw error;
   if (!data) return null;
 
   const row = data as RecipeRowWithJoin;
