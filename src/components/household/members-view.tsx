@@ -28,9 +28,11 @@ import { toast } from "sonner";
 export function MembersView({
   householdId,
   userId,
+  embedded = false,
 }: {
   householdId: string;
   userId: string;
+  embedded?: boolean;
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -115,7 +117,9 @@ export function MembersView({
   if (membersError) {
     return (
       <div className="space-y-2">
-        <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
+        {!embedded && (
+          <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
+        )}
         <p className="text-sm text-destructive">
           Kunde inte hämta medlemmar:{" "}
           {membersQueryError instanceof Error
@@ -128,12 +132,19 @@ export function MembersView({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
+      {!embedded && (
+        <div>
+          <h1 className="font-heading text-xl font-semibold">Medlemmar</h1>
+          <p className="text-xs text-muted-foreground">
+            {members.length} medlem{members.length === 1 ? "" : "mar"}
+          </p>
+        </div>
+      )}
+      {embedded && (
         <p className="text-xs text-muted-foreground">
           {members.length} medlem{members.length === 1 ? "" : "mar"}
         </p>
-      </div>
+      )}
 
       {membersPending ? (
         <MembersSkeleton />

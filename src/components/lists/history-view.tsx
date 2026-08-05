@@ -32,7 +32,13 @@ function historyMetaLine(list: ShoppingListWithCreator): string {
   return parts.join(" · ") || "Arkiverad lista";
 }
 
-export function HistoryView({ householdId }: { householdId: string }) {
+export function HistoryView({
+  householdId,
+  embedded = false,
+}: {
+  householdId: string;
+  embedded?: boolean;
+}) {
   useHouseholdRealtime(householdId);
 
   const { data: lists = [], isLoading } = useQuery({
@@ -45,12 +51,20 @@ export function HistoryView({ householdId }: { householdId: string }) {
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="font-heading text-[length:var(--mati-text-title)] font-semibold leading-tight">
-          Historik
-        </h1>
-        <p className="text-[11px] text-muted-foreground">Arkiverade listor – endast läsning</p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h1 className="font-heading text-[length:var(--mati-text-title)] font-semibold leading-tight">
+            Historik
+          </h1>
+          <p className="text-[11px] text-muted-foreground">
+            Arkiverade listor – endast läsning
+          </p>
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          Arkiverade listor – endast läsning
+        </p>
+      )}
       {listsPending ? (
         <ListsSkeleton />
       ) : lists.length === 0 ? (

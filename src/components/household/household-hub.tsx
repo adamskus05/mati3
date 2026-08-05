@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { fetchUserHouseholds } from "@/lib/queries/households";
@@ -19,10 +19,13 @@ import { showQueryLoading } from "@/lib/query/loading";
 
 export function HouseholdHub() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectMode = searchParams.get("select") === "1";
   const online = useOnline();
   const [createName, setCreateName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [autoRedirecting, setAutoRedirecting] = useState(!selectMode);
 
   const { data: households = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.households,
@@ -30,13 +33,24 @@ export function HouseholdHub() {
   });
 
   useEffect(() => {
-    if (isLoading || households.length !== 1) return;
-    const last = localStorage.getItem(LAST_HOUSEHOLD_KEY);
-    if (!last) {
-      localStorage.setItem(LAST_HOUSEHOLD_KEY, households[0].id);
-      router.push(`/h/${households[0].id}`);
+    if (selectMode) {
+      setAutoRedirecting(false);
+      return;
     }
-  }, [households, isLoading, router]);
+    if (isLoading) return;
+
+    const last = localStorage.getItem(LAST_HOUSEHOLD_KEY);
+    const lastMatch = last ? households.find((h) => h.id === last) : undefined;
+    const target = lastMatch ?? households[0];
+
+    if (target) {
+      localStorage.setItem(LAST_HOUSEHOLD_KEY, target.id);
+      router.replace(`/h/${target.id}`);
+      return;
+    }
+
+    setAutoRedirecting(false);
+  }, [households, isLoading, router, selectMode]);
 
   function goToHousehold(id: string) {
     localStorage.setItem(LAST_HOUSEHOLD_KEY, id);
@@ -88,7 +102,7 @@ export function HouseholdHub() {
     goToHousehold(data.id);
   }
 
-  if (showQueryLoading(isLoading, households)) {
+  if (autoRedirecting || showQueryLoading(isLoading, households)) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <p className="text-muted-foreground">Laddar…</p>

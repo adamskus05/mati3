@@ -44,6 +44,7 @@ export function SettingsView({
   householdName,
   profileName,
   showAdminLink = false,
+  embedded = false,
 }: {
   householdId: string;
   userId: string;
@@ -51,6 +52,7 @@ export function SettingsView({
   householdName: string;
   profileName: string;
   showAdminLink?: boolean;
+  embedded?: boolean;
 }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -147,7 +149,9 @@ export function SettingsView({
 
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-xl font-semibold">Inställningar</h1>
+      {!embedded && (
+        <h1 className="font-heading text-xl font-semibold">Inställningar</h1>
+      )}
 
       {showAdminLink && (
         <Card className="rounded-2xl border-primary/30">
@@ -202,7 +206,7 @@ export function SettingsView({
             </Link>
           ))}
           <Link
-            href="/"
+            href="/?select=1"
             className="mt-2 flex w-full items-center justify-center rounded-md border px-3 py-2 text-sm font-medium active:bg-muted"
           >
             Skapa eller gå med i hushåll

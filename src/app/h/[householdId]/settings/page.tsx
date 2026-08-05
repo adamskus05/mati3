@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { fetchHousehold } from "@/lib/queries/households";
-import { SettingsView } from "@/components/settings/settings-view";
+import { SettingsHub } from "@/components/settings/settings-hub";
 import { checkIsPlatformAdmin } from "@/lib/actions/signup-access";
 import { notFound } from "next/navigation";
 
@@ -26,13 +27,15 @@ export default async function SettingsPage({
   const showAdminLink = await checkIsPlatformAdmin();
 
   return (
-    <SettingsView
-      householdId={householdId}
-      userId={user!.id}
-      inviteCode={household.invite_code}
-      householdName={household.name}
-      profileName={profile?.display_name ?? ""}
-      showAdminLink={showAdminLink}
-    />
+    <Suspense fallback={null}>
+      <SettingsHub
+        householdId={householdId}
+        userId={user!.id}
+        inviteCode={household.invite_code}
+        householdName={household.name}
+        profileName={profile?.display_name ?? ""}
+        showAdminLink={showAdminLink}
+      />
+    </Suspense>
   );
 }

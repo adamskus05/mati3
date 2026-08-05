@@ -4,16 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Home,
-  Tags,
-  Users,
-  Settings,
-  History,
-  LogOut,
-  ChefHat,
-  Search,
-} from "lucide-react";
+import { Home, Settings, LogOut, ChefHat, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/actions/auth";
@@ -25,14 +16,42 @@ import { prefetchHouseholdTabs } from "@/lib/query/prefetch-household-tabs";
 import { isStandalonePwa } from "@/lib/pwa/standalone";
 import { GlobalSearchSheet } from "@/components/search/global-search-sheet";
 
-const navItems = (householdId: string) => [
-  { href: `/h/${householdId}`, label: "Listor", icon: Home },
-  { href: `/h/${householdId}/recipes`, label: "Recept", icon: ChefHat },
-  { href: `/h/${householdId}/categories`, label: "Kategorier", icon: Tags },
-  { href: `/h/${householdId}/members`, label: "Medlemmar", icon: Users },
-  { href: `/h/${householdId}/history`, label: "Historik", icon: History },
-  { href: `/h/${householdId}/settings`, label: "Inställningar", icon: Settings },
-];
+const navItems = (householdId: string) =>
+  [
+    { id: "lists" as const, href: `/h/${householdId}`, label: "Listor", icon: Home },
+    {
+      id: "recipes" as const,
+      href: `/h/${householdId}/recipes`,
+      label: "Recept",
+      icon: ChefHat,
+    },
+    {
+      id: "settings" as const,
+      href: `/h/${householdId}/settings`,
+      label: "Inställningar",
+      icon: Settings,
+    },
+  ] as const;
+
+function isNavActive(
+  id: "lists" | "recipes" | "settings",
+  householdId: string,
+  pathname: string
+): boolean {
+  const base = `/h/${householdId}`;
+  if (id === "lists") {
+    if (pathname === base) return true;
+    if (pathname.startsWith(`${base}/lists/`)) return true;
+    return false;
+  }
+  if (id === "recipes") {
+    return pathname.startsWith(`${base}/recipes`);
+  }
+  // settings: settings page, history detail (archived lists)
+  if (pathname.startsWith(`${base}/settings`)) return true;
+  if (pathname.startsWith(`${base}/history/`)) return true;
+  return false;
+}
 
 export function AppShell({
   householdId,
@@ -115,14 +134,10 @@ export function AppShell({
 
       <nav className="app-bottom-nav" aria-label="Huvudnavigering">
         <div className="app-bottom-nav__bar mx-auto flex w-full max-w-lg items-stretch justify-around px-1">
-          {items.map(({ href, label, icon: Icon }) => {
+          {items.map(({ id, href, label, icon: Icon }) => {
             const active =
               pendingHref === href ||
-              (pendingHref === null &&
-                (href === `/h/${householdId}`
-                  ? pathname === href ||
-                    (pathname.includes("/lists/") && !pathname.includes("/recipes"))
-                  : pathname.startsWith(href)));
+              (pendingHref === null && isNavActive(id, householdId, pathname));
             return (
               <Link
                 key={href}

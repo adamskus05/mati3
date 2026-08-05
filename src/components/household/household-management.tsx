@@ -98,7 +98,7 @@ export function HouseholdManagement({
     }
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.households });
     toast.success("Du lämnade hushållet");
-    router.push("/");
+    router.push("/?select=1");
     router.refresh();
   }
 

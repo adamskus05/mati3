@@ -597,7 +597,11 @@ export function ShoppingListDetail({
         )}
       >
         <Link
-          href={readOnly ? `/h/${householdId}/history` : `/h/${householdId}`}
+          href={
+            readOnly
+              ? `/h/${householdId}/settings?tab=history`
+              : `/h/${householdId}`
+          }
           className={cn(
             "inline-flex shrink-0 items-center justify-center rounded-md hover:bg-muted active:scale-95 active:bg-muted",
             readOnly ? "h-8 w-8" : "h-9 w-9"

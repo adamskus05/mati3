@@ -71,12 +71,18 @@ function normalizeSearchRow(raw: unknown): HouseholdSearchResult | null {
         ? row.subtitle
         : String(row.subtitle);
 
+  let resolvedHref = trimmedHref;
+  // Prefer in-app tab URLs after nav restructure (RPC may still return legacy paths)
+  if (kind === "category") {
+    resolvedHref = resolvedHref.replace(/\/categories\/?$/, "?tab=categories");
+  }
+
   return {
     kind: kind as HouseholdSearchResult["kind"],
     id: trimmedId,
     title: title.trim(),
     subtitle,
-    href: trimmedHref,
+    href: resolvedHref,
   };
 }
 

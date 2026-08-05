@@ -37,7 +37,7 @@ export default async function AdminLayout({
               <p className="text-xs font-medium text-primary">Mati Admin</p>
               <h1 className="font-heading text-lg font-semibold">Plattform</h1>
             </div>
-            <Link href="/" className="text-sm text-muted-foreground underline">
+            <Link href="/?select=1" className="text-sm text-muted-foreground underline">
               Till appen
             </Link>
           </div>
