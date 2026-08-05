@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Camera, Link2, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, ImageIcon, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createRecipe,
@@ -75,6 +75,7 @@ export function RecipeEditor({
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>(() =>
     recipe?.recipe_ingredients.length
       ? recipe.recipe_ingredients.map((i) => ({
@@ -279,6 +280,7 @@ export function RecipeEditor({
     } finally {
       setImporting(false);
       if (photoInputRef.current) photoInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
     }
   }
 
@@ -457,20 +459,45 @@ export function RecipeEditor({
                   void handleImportPhoto(e.target.files?.[0] ?? null)
                 }
               />
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={importing}
-                className="h-[var(--mati-touch)] w-full rounded-xl gap-2"
-                onClick={() => photoInputRef.current?.click()}
-              >
-                {importing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Camera className="h-4 w-4" />
-                )}
-                Ta eller välj bild
-              </Button>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) =>
+                  void handleImportPhoto(e.target.files?.[0] ?? null)
+                }
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={importing}
+                  className="h-[var(--mati-touch)] min-w-0 flex-1 rounded-xl gap-2"
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {importing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                  Ta bild
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={importing}
+                  className="h-[var(--mati-touch)] min-w-0 flex-1 rounded-xl gap-2"
+                  onClick={() => galleryInputRef.current?.click()}
+                >
+                  {importing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                  Välj bild
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Fotografera ett receptkort eller välj en bild – fälten fylls i
                 automatiskt.
