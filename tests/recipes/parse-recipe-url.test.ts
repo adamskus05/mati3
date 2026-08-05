@@ -271,6 +271,10 @@ describe("parseRecipeFromHtml", () => {
   "@context": "https://schema.org",
   "@type": "Recipe",
   "name": "Koreanska kycklingl&aring;r",
+  "image": [
+    "/assets/images/recipes/korean_chicken_thighs1x1a1080w1080h.webp",
+    "https://foodbydrygast.com/assets/images/recipes/korean_chicken_thighs16x9.webp"
+  ],
   "recipeIngredient": [
     "800 g Kycklingl&aring;r",
     "64 g (3 msk) Honung",
@@ -288,6 +292,9 @@ describe("parseRecipeFromHtml", () => {
     const result = parseRecipeFromHtml(html, "https://foodbydrygast.com/sv/recipe/korean_chicken_thighs");
     expect(result).not.toBeNull();
     expect(result?.title).toBe("Koreanska kycklinglår");
+    expect(result?.imageUrl).toBe(
+      "https://foodbydrygast.com/assets/images/recipes/korean_chicken_thighs1x1a1080w1080h.webp"
+    );
     expect(result?.ingredients).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Kycklinglår", quantity: 800, unit: "g" }),
@@ -305,6 +312,23 @@ describe("parseRecipeFromHtml", () => {
     );
     expect(result?.instructions.some((s) => /<li>/i.test(s))).toBe(false);
     expect(result?.instructions.some((s) => s.includes("&aring;"))).toBe(false);
+  });
+
+  it("falls back to og:image when JSON-LD has no image", () => {
+    const html = `
+      <meta property="og:image" content="/hero.jpg" />
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Recipe",
+        "name": "Test",
+        "recipeIngredient": ["1 dl mjölk"],
+        "recipeInstructions": ["Blanda."]
+      }
+      </script>
+    `;
+    const result = parseRecipeFromHtml(html, "https://example.com/recept/test");
+    expect(result?.imageUrl).toBe("https://example.com/hero.jpg");
   });
 });
 

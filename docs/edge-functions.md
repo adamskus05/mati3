@@ -43,7 +43,7 @@ npx supabase functions deploy recipe-import-image
 - `recipe-import-url` for links (JSON-LD scrape)
 - `recipe-import-image` for camera/file photos (OpenAI `gpt-4o`)
 
-Photos upload to the public Storage bucket `recipe-images` (migration `20250529120300_recipe_images_bucket.sql`). Set Edge secret `OPENAI_API_KEY` and run the storage migration before photo import works.
+Photos upload to the public Storage bucket `recipe-images` (migration `20250529120300_recipe_images_bucket.sql`). URL import also mirrors the page image into that bucket when possible. Set Edge secret `OPENAI_API_KEY` and run the storage migration before photo import works.
 
 Vercel only needs `NEXT_PUBLIC_SUPABASE_URL` and anon key for client invokes.
 

@@ -525,21 +525,49 @@ export function RecipeEditor({
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Ingredienser</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1"
-              onClick={() => setIngredients((prev) => [...prev, emptyIngredient()])}
-            >
-              <Plus className="h-4 w-4" />
-              Lägg till
-            </Button>
+        {imageUrl.trim() && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Bild</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-muted-foreground"
+                onClick={() => setImageUrl("")}
+              >
+                Ta bort
+              </Button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl.trim()}
+              alt=""
+              className="aspect-[16/9] w-full rounded-xl object-cover"
+            />
           </div>
-          <div className="space-y-4">
+        )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Ingredienser</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => setIngredients((prev) => [...prev, emptyIngredient()])}
+              >
+                <Plus className="h-4 w-4" />
+                Lägg till
+              </Button>
+            </div>
+            <datalist id="recipe-unit-options">
+              {UNITS.map((u) => (
+                <option key={u} value={u} />
+              ))}
+            </datalist>
+            <div className="space-y-4">
             {ingredientGroups.map((group, gi) => {
               const groupKeys = group.items.map((r) => r.key);
               return (
@@ -567,36 +595,45 @@ export function RecipeEditor({
                             className="h-9 rounded-lg"
                           />
                         </div>
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder="Antal"
-                          value={row.quantity ?? ""}
-                          onChange={(e) =>
-                            updateIngredient(row.key, {
-                              quantity: e.target.value
-                                ? parseFloat(e.target.value)
-                                : null,
-                            })
-                          }
-                          className="h-9 w-16 rounded-lg"
-                        />
-                        <select
-                          value={row.unit ?? ""}
-                          onChange={(e) =>
-                            updateIngredient(row.key, {
-                              unit: e.target.value || null,
-                            })
-                          }
-                          className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="">–</option>
-                          {UNITS.map((u) => (
-                            <option key={u} value={u}>
-                              {u}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex shrink-0 items-end gap-1.5">
+                          <div className="space-y-0.5">
+                            <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Antal
+                            </span>
+                            <input
+                              type="number"
+                              step="any"
+                              inputMode="decimal"
+                              placeholder="–"
+                              value={row.quantity ?? ""}
+                              onChange={(e) =>
+                                updateIngredient(row.key, {
+                                  quantity: e.target.value
+                                    ? parseFloat(e.target.value)
+                                    : null,
+                                })
+                              }
+                              className="h-9 w-16 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                            />
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Enhet
+                            </span>
+                            <input
+                              list="recipe-unit-options"
+                              placeholder="–"
+                              value={row.unit ?? ""}
+                              onChange={(e) =>
+                                updateIngredient(row.key, {
+                                  unit: e.target.value.trim() || null,
+                                })
+                              }
+                              className="h-9 w-20 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                              aria-label="Enhet"
+                            />
+                          </div>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"

@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { mirrorRecipeImage } from "../_shared/mirror-recipe-image.ts";
 import { parseRecipeFromHtml } from "../_shared/parse-recipe-url.ts";
 import { assertSafeRecipeUrl } from "../_shared/url-validation.ts";
 
@@ -135,8 +136,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    let imageUrl = recipe.imageUrl;
+    if (imageUrl) {
+      const mirrored = await mirrorRecipeImage(supabase, user.id, imageUrl);
+      if (mirrored) imageUrl = mirrored;
+    }
+
     return jsonResponse({
       ...recipe,
+      imageUrl,
       sourceUrl: url.toString(),
     });
   } catch (e) {

@@ -14,8 +14,13 @@ export const UNITS = [
   "l",
   "dl",
   "ml",
+  "msk",
+  "tsk",
+  "krm",
+  "cl",
   "paket",
   "förp",
+  "burk",
 ] as const;
 
 export const CATEGORY_COLORS = [

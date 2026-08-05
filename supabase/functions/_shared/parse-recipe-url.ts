@@ -379,7 +379,10 @@ function extractJsonLdBlocks(html: string): unknown[] {
 }
 
 function normalizeImage(image: unknown): string | undefined {
-  if (typeof image === "string") return image;
+  if (typeof image === "string") {
+    const trimmed = image.trim();
+    return trimmed || undefined;
+  }
   if (Array.isArray(image)) {
     for (const item of image) {
       const url = normalizeImage(item);
@@ -389,8 +392,36 @@ function normalizeImage(image: unknown): string | undefined {
   }
   if (image && typeof image === "object") {
     const o = image as Record<string, unknown>;
-    if (typeof o.url === "string") return o.url;
-    if (typeof o.contentUrl === "string") return o.contentUrl;
+    if (typeof o.url === "string") return normalizeImage(o.url);
+    if (typeof o.contentUrl === "string") return normalizeImage(o.contentUrl);
+  }
+  return undefined;
+}
+
+/** Resolve relative image URLs against the recipe page. */
+function absolutizeUrl(maybeUrl: string | undefined, baseUrl: string): string | undefined {
+  if (!maybeUrl) return undefined;
+  try {
+    return new URL(maybeUrl, baseUrl).toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Fallback when JSON-LD has no image (og:image / twitter:image). */
+export function extractMetaImageUrl(html: string): string | undefined {
+  const patterns = [
+    /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image:secure_url["']/i,
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    const url = m?.[1]?.trim();
+    if (url) return decodeHtmlEntities(url);
   }
   return undefined;
 }
@@ -658,9 +689,10 @@ function parseArlaIngredientGroupsFromHtml(html: string): ParsedIngredient[] | n
 }
 
 /** Extract recipe from HTML using schema.org JSON-LD (and common variants). */
-export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRecipe | null {
+export function parseRecipeFromHtml(html: string, sourceUrl: string): ParsedRecipe | null {
   const blocks = extractJsonLdBlocks(html);
   const arlaIngredients = parseArlaIngredientGroupsFromHtml(html);
+  const metaImage = absolutizeUrl(extractMetaImageUrl(html), sourceUrl);
 
   for (const block of blocks) {
     const idMap = buildJsonLdIdMap(block);
@@ -681,9 +713,12 @@ export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRec
 
     if (ingredients.length === 0 && instructions.length === 0) continue;
 
+    const imageUrl =
+      absolutizeUrl(normalizeImage(recipe.image), sourceUrl) ?? metaImage;
+
     return {
       title: decodeHtmlEntities(title.trim()),
-      imageUrl: normalizeImage(recipe.image),
+      imageUrl,
       ingredients,
       instructions,
     };
