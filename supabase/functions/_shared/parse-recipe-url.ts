@@ -22,6 +22,75 @@ const UNITS =
 const QUANTITY_PREFIX =
   /^((?:\d+(?:[.,]\d+)?|\d+\/\d+)|[½¼¾⅓⅔]|\d+[½¼¾])(?:\s+|$)/;
 
+/** e.g. "64 g (3 msk) Honung" — prefer the kitchen measure in parentheses. */
+const GRAMS_WITH_PAREN_MEASURE =
+  /^(\d+(?:[.,]\d+)?)\s+([a-zåäö]+)\s+\((\d+(?:[.,]\d+)?)\s+([a-zåäö]+)\)\s+(.+)$/i;
+
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  deg: "°",
+  aring: "å",
+  Aring: "Å",
+  auml: "ä",
+  Auml: "Ä",
+  ouml: "ö",
+  Ouml: "Ö",
+  eacute: "é",
+  Eacute: "É",
+  aacute: "á",
+  iacute: "í",
+  oacute: "ó",
+  uacute: "ú",
+  agrave: "à",
+  egrave: "è",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  times: "×",
+  frac12: "½",
+  frac14: "¼",
+  frac34: "¾",
+};
+
+/** Decode HTML entities commonly found in broken JSON-LD (Drygast, etc.). */
+export function decodeHtmlEntities(text: string): string {
+  if (!text || !text.includes("&")) return text;
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => {
+      const code = parseInt(hex, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec: string) => {
+      const code = parseInt(dec, 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (match, name: string) => {
+      return NAMED_HTML_ENTITIES[name] ?? match;
+    });
+}
+
+function parseQuantityToken(q: string): number | undefined {
+  if (q.includes("/")) {
+    const [a, b] = q.split("/").map(Number);
+    return b ? a / b : Number(a);
+  }
+  if (/[½¼¾]/.test(q)) {
+    const unicodeMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
+    const digitMixed = q.match(/^(\d+)([½¼¾])$/);
+    if (digitMixed) {
+      return parseInt(digitMixed[1], 10) + (unicodeMap[digitMixed[2]] ?? 0);
+    }
+    return unicodeMap[q];
+  }
+  const n = parseFloat(q.replace(",", "."));
+  return Number.isFinite(n) ? n : undefined;
+}
+
 const INSTRUCTION_TYPES = new Set([
   "HowToStep",
   "HowToDirection",
@@ -31,8 +100,35 @@ const INSTRUCTION_TYPES = new Set([
 
 /** Parse a free-text ingredient line (Swedish-friendly). */
 export function parseIngredientLine(line: string): ParsedIngredient {
-  const raw = line.trim();
+  const raw = decodeHtmlEntities(line.trim());
   if (!raw) return { name: "", raw };
+
+  const paren = raw.match(GRAMS_WITH_PAREN_MEASURE);
+  if (paren) {
+    const parenUnit = paren[4]!.toLowerCase();
+    const outerUnit = paren[2]!.toLowerCase();
+    // Prefer volumetric/count measures in parentheses when present (msk, tsk, st, …)
+    if (UNITS.test(parenUnit)) {
+      const quantity = parseQuantityToken(paren[3]!);
+      const name = paren[5]!.trim();
+      if (name) {
+        return {
+          name,
+          quantity,
+          unit: parenUnit,
+          raw,
+        };
+      }
+    }
+    if (UNITS.test(outerUnit)) {
+      return {
+        name: paren[5]!.trim() || raw,
+        quantity: parseQuantityToken(paren[1]!),
+        unit: outerUnit,
+        raw,
+      };
+    }
+  }
 
   const parts = raw.split(/\s+/);
   let quantity: number | undefined;
@@ -41,21 +137,7 @@ export function parseIngredientLine(line: string): ParsedIngredient {
 
   const qtyPrefix = raw.match(QUANTITY_PREFIX);
   if (qtyPrefix) {
-    const q = qtyPrefix[1];
-    if (q.includes("/")) {
-      const [a, b] = q.split("/").map(Number);
-      quantity = b ? a / b : Number(a);
-    } else if (/[½¼¾]/.test(q)) {
-      const unicodeMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
-      const digitMixed = q.match(/^(\d+)([½¼¾])$/);
-      if (digitMixed) {
-        quantity = parseInt(digitMixed[1], 10) + (unicodeMap[digitMixed[2]] ?? 0);
-      } else {
-        quantity = unicodeMap[q] ?? undefined;
-      }
-    } else {
-      quantity = parseFloat(q.replace(",", "."));
-    }
+    quantity = parseQuantityToken(qtyPrefix[1]!);
     const consumed = qtyPrefix[0].trim().split(/\s+/).length;
     nameStart = consumed;
     if (parts[nameStart] && UNITS.test(parts[nameStart])) {
@@ -259,19 +341,13 @@ export function sanitizeJsonLdText(text: string): string {
 
 /** Split HTML instruction blobs into plain step lines. */
 export function flattenHtmlInstructionText(html: string): string[] {
-  const text = html
+  const withBreaks = decodeHtmlEntities(html)
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/\s*(p|div|li|h[1-6]|tr)\s*>/gi, "\n")
     .replace(/<\s*\/?\s*(ol|ul)[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">");
+    .replace(/<[^>]+>/g, " ");
 
-  return text
+  return withBreaks
     .split(/\n+/)
     .map((s) => s.replace(/\s+/g, " ").trim())
     .map((s) => s.replace(/^\d+[\.\):\-]\s*/, "").trim())
@@ -279,10 +355,11 @@ export function flattenHtmlInstructionText(html: string): string[] {
 }
 
 function expandInstructionStep(step: string): string[] {
-  if (/<[a-z][\s\S]*>/i.test(step)) {
-    return flattenHtmlInstructionText(step);
+  const decoded = decodeHtmlEntities(step);
+  if (/<[a-z][\s\S]*>/i.test(decoded)) {
+    return flattenHtmlInstructionText(decoded);
   }
-  return [step];
+  return [decoded];
 }
 
 function extractJsonLdBlocks(html: string): unknown[] {
@@ -605,7 +682,7 @@ export function parseRecipeFromHtml(html: string, _sourceUrl: string): ParsedRec
     if (ingredients.length === 0 && instructions.length === 0) continue;
 
     return {
-      title: title.trim(),
+      title: decodeHtmlEntities(title.trim()),
       imageUrl: normalizeImage(recipe.image),
       ingredients,
       instructions,

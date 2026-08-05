@@ -270,12 +270,14 @@ describe("parseRecipeFromHtml", () => {
 {
   "@context": "https://schema.org",
   "@type": "Recipe",
-  "name": "Koreanska kycklinglår",
+  "name": "Koreanska kycklingl&aring;r",
   "recipeIngredient": [
-    "800 g Kycklinglår",
-    "64 g Honung"
+    "800 g Kycklingl&aring;r",
+    "64 g (3 msk) Honung",
+    "15 g (1 msk) Sojas&aring;s",
+    "10 g (2 st) Vitl&ouml;ksklyfta"
   ],
-  "recipeInstructions": "<strong>Kycklinglår</strong>
+  "recipeInstructions": "<strong>Kycklingl&aring;r</strong>
 <ol>
 <li>Mixa marinaden.</li>
 <li>Rensa kycklingen.</li>
@@ -286,7 +288,14 @@ describe("parseRecipeFromHtml", () => {
     const result = parseRecipeFromHtml(html, "https://foodbydrygast.com/sv/recipe/korean_chicken_thighs");
     expect(result).not.toBeNull();
     expect(result?.title).toBe("Koreanska kycklinglår");
-    expect(result?.ingredients.length).toBeGreaterThanOrEqual(2);
+    expect(result?.ingredients).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Kycklinglår", quantity: 800, unit: "g" }),
+        expect.objectContaining({ name: "Honung", quantity: 3, unit: "msk" }),
+        expect.objectContaining({ name: "Sojasås", quantity: 1, unit: "msk" }),
+        expect.objectContaining({ name: "Vitlöksklyfta", quantity: 2, unit: "st" }),
+      ])
+    );
     expect(result?.instructions).toEqual(
       expect.arrayContaining([
         "Mixa marinaden.",
@@ -295,6 +304,30 @@ describe("parseRecipeFromHtml", () => {
       ])
     );
     expect(result?.instructions.some((s) => /<li>/i.test(s))).toBe(false);
+    expect(result?.instructions.some((s) => s.includes("&aring;"))).toBe(false);
+  });
+});
+
+describe("decodeHtmlEntities", () => {
+  it("decodes Swedish entities", async () => {
+    const { decodeHtmlEntities } = await import("@/lib/recipes/parse-recipe-url");
+    expect(decodeHtmlEntities("kycklingl&aring;r")).toBe("kycklinglår");
+    expect(decodeHtmlEntities("Sojas&aring;s")).toBe("Sojasås");
+  });
+});
+
+describe("parseIngredientLine paren measures", () => {
+  it("prefers msk/tsk/st in parentheses over grams", () => {
+    expect(parseIngredientLine("64 g (3 msk) Honung")).toMatchObject({
+      name: "Honung",
+      quantity: 3,
+      unit: "msk",
+    });
+    expect(parseIngredientLine("10 g (2 st) Vitlöksklyfta")).toMatchObject({
+      name: "Vitlöksklyfta",
+      quantity: 2,
+      unit: "st",
+    });
   });
 });
 
