@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Link2, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createRecipe,
@@ -25,6 +25,12 @@ import {
   MATI_INGREDIENT_LIST_CLASS,
   parseInstructionLines,
 } from "@/lib/recipes/instruction-format";
+import {
+  applyImportedRecipe,
+  edgeFunctionErrorMessage,
+  type ImportedRecipePayload,
+} from "@/lib/recipes/apply-import";
+import { compressRecipeImage } from "@/lib/recipes/compress-recipe-image";
 import { useOnline } from "@/hooks/use-online";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +74,7 @@ export function RecipeEditor({
   const [imageUrl, setImageUrl] = useState(recipe?.image_url ?? "");
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>(() =>
     recipe?.recipe_ingredients.length
       ? recipe.recipe_ingredients.map((i) => ({
@@ -167,6 +174,15 @@ export function RecipeEditor({
     setIngredients((prev) => [...prev, emptyIngredient(section)]);
   }
 
+  function applyImportToForm(payload: ImportedRecipePayload, fallbackSource = "") {
+    const applied = applyImportedRecipe(payload, fallbackSource);
+    setTitle(applied.title);
+    setSourceUrl(applied.sourceUrl);
+    if (applied.imageUrl) setImageUrl(applied.imageUrl);
+    setIngredients(applied.ingredients);
+    setInstructionsText(applied.instructionsText);
+  }
+
   async function handleImportUrl() {
     if (!importUrl.trim()) return;
     if (!online) {
@@ -182,63 +198,87 @@ export function RecipeEditor({
       });
 
       if (error) {
-        const ctx = error.context as { error?: string } | undefined;
-        toast.error(ctx?.error ?? error.message ?? "Kunde inte hämta recept");
+        toast.error(await edgeFunctionErrorMessage(error));
         setSourceUrl(importUrl.trim());
         return;
       }
 
-      const payload = data as {
-        error?: string;
-        title?: string;
-        sourceUrl?: string;
-        imageUrl?: string;
-        ingredients?: {
-          name: string;
-          quantity?: number;
-          unit?: string;
-          section?: string;
-        }[];
-        instructions?: string[];
-      };
-
+      const payload = data as ImportedRecipePayload;
       if (payload?.error) {
         toast.error(payload.error);
         setSourceUrl(importUrl.trim());
         return;
       }
 
-      setTitle(payload.title ?? "");
-      setSourceUrl(payload.sourceUrl ?? importUrl.trim());
-      if (payload.imageUrl) setImageUrl(payload.imageUrl);
-
-      const ings = (payload.ingredients ?? []) as {
-        name: string;
-        quantity?: number;
-        unit?: string;
-        section?: string;
-      }[];
-      setIngredients(
-        ings.length > 0
-          ? ings.map((i) => ({
-              key: crypto.randomUUID(),
-              name: i.name,
-              quantity: i.quantity ?? null,
-              unit: i.unit ?? null,
-              notes: null,
-              section: i.section ?? null,
-            }))
-          : [emptyIngredient()]
-      );
-
-      const steps = (payload.instructions ?? []) as string[];
-      setInstructionsText(formatInstructionSteps(steps));
+      applyImportToForm(payload, importUrl.trim());
       toast.success("Recept hämtat – justera och spara");
     } catch {
       toast.error("Kunde inte hämta recept");
       setSourceUrl(importUrl.trim());
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleImportPhoto(file: File | null) {
+    if (!file) return;
+    if (!online) {
+      toast.error("Ingen anslutning");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Välj en bildfil");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const supabase = createClient();
+      const compressed = await compressRecipeImage(file);
+      const path = `${userId}/${crypto.randomUUID()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, compressed, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+      if (uploadError) {
+        toast.error(uploadError.message || "Kunde inte ladda upp bilden");
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("recipe-images").getPublicUrl(path);
+
+      const { data, error } = await supabase.functions.invoke(
+        "recipe-import-image",
+        { body: { imageUrl: publicUrl } }
+      );
+
+      if (error) {
+        toast.error(await edgeFunctionErrorMessage(error, "Kunde inte tolka receptfoto"));
+        setImageUrl(publicUrl);
+        return;
+      }
+
+      const payload = data as ImportedRecipePayload;
+      if (payload?.error) {
+        toast.error(payload.error);
+        setImageUrl(publicUrl);
+        return;
+      }
+
+      applyImportToForm(
+        { ...payload, imageUrl: payload.imageUrl ?? publicUrl },
+        ""
+      );
+      toast.success("Recept tolkat från foto – justera och spara");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Kunde inte tolka receptfoto");
+    } finally {
+      setImporting(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
     }
   }
 
@@ -377,31 +417,64 @@ export function RecipeEditor({
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {!isEdit && (
-          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
-            <Label className="text-xs text-muted-foreground">Från länk</Label>
-            <div className="flex gap-2">
-              <Input
-                id="recipeImportUrl"
-                type="url"
-                placeholder="https://…"
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                className="h-[var(--mati-touch)] min-w-0 flex-1 rounded-xl"
+          <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Från länk</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="recipeImportUrl"
+                  type="url"
+                  placeholder="https://…"
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  className="h-[var(--mati-touch)] min-w-0 flex-1 rounded-xl"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={importing || !importUrl.trim()}
+                  className="h-[var(--mati-touch)] shrink-0 rounded-xl gap-1"
+                  onClick={handleImportUrl}
+                >
+                  {importing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  Hämta
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Från foto</Label>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) =>
+                  void handleImportPhoto(e.target.files?.[0] ?? null)
+                }
               />
               <Button
                 type="button"
                 variant="secondary"
-                disabled={importing || !importUrl.trim()}
-                className="h-[var(--mati-touch)] shrink-0 rounded-xl gap-1"
-                onClick={handleImportUrl}
+                disabled={importing}
+                className="h-[var(--mati-touch)] w-full rounded-xl gap-2"
+                onClick={() => photoInputRef.current?.click()}
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Link2 className="h-4 w-4" />
+                  <Camera className="h-4 w-4" />
                 )}
-                Hämta
+                Ta eller välj bild
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Fotografera ett receptkort eller välj en bild – fälten fylls i
+                automatiskt.
+              </p>
             </div>
           </div>
         )}

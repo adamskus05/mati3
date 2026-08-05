@@ -263,4 +263,45 @@ describe("parseRecipeFromHtml", () => {
       expect.objectContaining({ name: "yoghurt", section: "Tzatziki" }),
     ]);
   });
+
+  it("parses Drygast-style JSON-LD with raw newlines and HTML instructions", () => {
+    // Intentionally invalid JSON (raw newlines inside string) like foodbydrygast.com
+    const html = `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Koreanska kycklinglår",
+  "recipeIngredient": [
+    "800 g Kycklinglår",
+    "64 g Honung"
+  ],
+  "recipeInstructions": "<strong>Kycklinglår</strong>
+<ol>
+<li>Mixa marinaden.</li>
+<li>Rensa kycklingen.</li>
+<li>Tillaga i ugn.</li>
+</ol>"
+}
+</script>`;
+    const result = parseRecipeFromHtml(html, "https://foodbydrygast.com/sv/recipe/korean_chicken_thighs");
+    expect(result).not.toBeNull();
+    expect(result?.title).toBe("Koreanska kycklinglår");
+    expect(result?.ingredients.length).toBeGreaterThanOrEqual(2);
+    expect(result?.instructions).toEqual(
+      expect.arrayContaining([
+        "Mixa marinaden.",
+        "Rensa kycklingen.",
+        "Tillaga i ugn.",
+      ])
+    );
+    expect(result?.instructions.some((s) => /<li>/i.test(s))).toBe(false);
+  });
+});
+
+describe("sanitizeJsonLdText", () => {
+  it("escapes newlines inside strings", async () => {
+    const { sanitizeJsonLdText } = await import("@/lib/recipes/parse-recipe-url");
+    const raw = '{"a": "line1\nline2"}';
+    expect(JSON.parse(sanitizeJsonLdText(raw))).toEqual({ a: "line1\nline2" });
+  });
 });

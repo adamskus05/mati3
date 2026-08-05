@@ -6,6 +6,7 @@
 |----------|---------|-----|
 | `push-send` | Web push (database webhook) | No (`--no-verify-jwt`) |
 | `recipe-import-url` | Import recipe from URL | Yes (user Bearer token) |
+| `recipe-import-image` | Import recipe from photo (OpenAI vision) | Yes (user Bearer token) |
 
 ## One-command setup (local)
 
@@ -28,10 +29,23 @@ npx supabase secrets set \
   PUSH_WEBHOOK_SECRET="..." \
   VAPID_PRIVATE_KEY="..." \
   VAPID_PUBLIC_KEY="..." \
-  NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY="..." \
+  OPENAI_API_KEY="..."   # required for photo import
 npx supabase functions deploy push-send --no-verify-jwt
 npx supabase functions deploy recipe-import-url
+npx supabase functions deploy recipe-import-image
 ```
+
+## Recipe import in app
+
+`RecipeEditor` calls:
+
+- `recipe-import-url` for links (JSON-LD scrape)
+- `recipe-import-image` for camera/file photos (OpenAI `gpt-4o`)
+
+Photos upload to the public Storage bucket `recipe-images` (migration `20250529120300_recipe_images_bucket.sql`). Set Edge secret `OPENAI_API_KEY` and run the storage migration before photo import works.
+
+Vercel only needs `NEXT_PUBLIC_SUPABASE_URL` and anon key for client invokes.
 
 ## Database webhook (push)
 
@@ -60,6 +74,6 @@ npm run db:types
 
 Requires linked project (`npx supabase link`).
 
-## Recipe import in app
+## Storage (recipe photos)
 
-`RecipeEditor` calls `supabase.functions.invoke('recipe-import-url')` directly. Vercel only needs `NEXT_PUBLIC_SUPABASE_URL` and anon key.
+Apply migration `20250529120300_recipe_images_bucket.sql` (bucket `recipe-images`, public read, auth upload under `{user_id}/`).

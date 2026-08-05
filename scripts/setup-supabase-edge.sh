@@ -22,6 +22,7 @@ read_env() {
 PUSH_WEBHOOK_SECRET=$(read_env PUSH_WEBHOOK_SECRET)
 VAPID_PRIVATE_KEY=$(read_env VAPID_PRIVATE_KEY)
 VAPID_PUBLIC_KEY=$(read_env NEXT_PUBLIC_VAPID_PUBLIC_KEY)
+OPENAI_API_KEY=$(read_env OPENAI_API_KEY)
 
 if [[ -z "$PUSH_WEBHOOK_SECRET" || -z "$VAPID_PRIVATE_KEY" || -z "$VAPID_PUBLIC_KEY" ]]; then
   echo "Missing PUSH_WEBHOOK_SECRET, VAPID_PRIVATE_KEY, or NEXT_PUBLIC_VAPID_PUBLIC_KEY in .env.local"
@@ -35,15 +36,23 @@ echo "Linking project ${MATI_PROJECT_REF}..."
 npx supabase link --project-ref "$MATI_PROJECT_REF"
 
 echo "Setting Edge secrets..."
-npx supabase secrets set \
-  "PUSH_WEBHOOK_SECRET=${PUSH_WEBHOOK_SECRET}" \
-  "VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}" \
-  "VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}" \
+SECRET_ARGS=(
+  "PUSH_WEBHOOK_SECRET=${PUSH_WEBHOOK_SECRET}"
+  "VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}"
+  "VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}"
   "NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}"
+)
+if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  SECRET_ARGS+=("OPENAI_API_KEY=${OPENAI_API_KEY}")
+else
+  echo "Note: OPENAI_API_KEY missing in .env.local — photo import will not work until set."
+fi
+npx supabase secrets set "${SECRET_ARGS[@]}"
 
 echo "Deploying functions..."
 npx supabase functions deploy push-send --no-verify-jwt
 npx supabase functions deploy recipe-import-url
+npx supabase functions deploy recipe-import-image
 
 echo ""
 echo "Done. Configure Database Webhook in Dashboard:"
@@ -51,4 +60,5 @@ echo "  Table: household_events | Insert"
 echo "  URL: https://${MATI_PROJECT_REF}.supabase.co/functions/v1/push-send"
 echo "  Header: x-push-secret = (same as PUSH_WEBHOOK_SECRET in .env.local)"
 echo ""
+echo "Photo import needs: OPENAI_API_KEY secret + recipe-images storage migration"
 echo "Optional: npm run db:types"

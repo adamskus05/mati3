@@ -207,6 +207,84 @@ function resolveJsonLdNode(
   return obj;
 }
 
+/**
+ * Escape raw control characters inside JSON string literals so sites with
+ * broken JSON-LD (e.g. foodbydrygast.com) still parse.
+ */
+export function sanitizeJsonLdText(text: string): string {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      result += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\n") {
+        result += "\\n";
+        continue;
+      }
+      if (ch === "\r") {
+        result += "\\r";
+        continue;
+      }
+      if (ch === "\t") {
+        result += "\\t";
+        continue;
+      }
+      const code = ch.charCodeAt(0);
+      if (code < 0x20) {
+        result += `\\u${code.toString(16).padStart(4, "0")}`;
+        continue;
+      }
+    }
+    result += ch;
+  }
+  return result;
+}
+
+/** Split HTML instruction blobs into plain step lines. */
+export function flattenHtmlInstructionText(html: string): string[] {
+  const text = html
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/\s*(p|div|li|h[1-6]|tr)\s*>/gi, "\n")
+    .replace(/<\s*\/?\s*(ol|ul)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+
+  return text
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .map((s) => s.replace(/^\d+[\.\):\-]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function expandInstructionStep(step: string): string[] {
+  if (/<[a-z][\s\S]*>/i.test(step)) {
+    return flattenHtmlInstructionText(step);
+  }
+  return [step];
+}
+
 function extractJsonLdBlocks(html: string): unknown[] {
   const blocks: unknown[] = [];
   const re =
@@ -215,7 +293,7 @@ function extractJsonLdBlocks(html: string): unknown[] {
   while ((match = re.exec(html)) !== null) {
     const text = match[1].trim();
     try {
-      blocks.push(JSON.parse(text));
+      blocks.push(JSON.parse(sanitizeJsonLdText(text)));
     } catch {
       // ignore invalid JSON
     }
@@ -424,6 +502,7 @@ function parseInstructionsField(field: unknown): string[] {
   const steps: string[] = [];
   collectInstructionSteps(field, steps);
   return steps
+    .flatMap(expandInstructionStep)
     .map((s) => s.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 }
