@@ -1,36 +1,36 @@
 "use client";
 
 import { useLayoutEffect } from "react";
-import {
-  applySafeBottomLock,
-  readAppliedSafeBottomPx,
-  resolveSafeBottomPx,
-} from "@/lib/pwa/safe-area-bottom";
+import { syncBottomChrome } from "@/lib/pwa/safe-area-bottom";
 
-/** Lock safe-area inset for stable bottom nav padding in iOS PWA. */
+/**
+ * Keep bottom nav glued to the visual viewport and re-measure safe-area
+ * after iOS PWA cold-start (env() / layout viewport often settle late).
+ */
 export function useLockedSafeArea() {
   useLayoutEffect(() => {
-    const lockedBottom = resolveSafeBottomPx();
+    const sync = () => syncBottomChrome();
 
-    const sync = () => {
-      if (readAppliedSafeBottomPx() !== lockedBottom) {
-        applySafeBottomLock(lockedBottom);
-      }
-    };
+    sync();
+    const raf = requestAnimationFrame(sync);
+    const times = [50, 100, 250, 500, 1000, 2000].map((ms) =>
+      window.setTimeout(sync, ms)
+    );
 
-    applySafeBottomLock(lockedBottom);
-    requestAnimationFrame(sync);
-    const t1 = window.setTimeout(sync, 50);
-    const t2 = window.setTimeout(sync, 300);
-
+    window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
     window.addEventListener("pageshow", sync);
+    window.visualViewport?.addEventListener("resize", sync);
+    window.visualViewport?.addEventListener("scroll", sync);
 
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      cancelAnimationFrame(raf);
+      for (const t of times) window.clearTimeout(t);
+      window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
       window.removeEventListener("pageshow", sync);
+      window.visualViewport?.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("scroll", sync);
     };
   }, []);
 }

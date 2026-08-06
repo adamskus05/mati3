@@ -149,7 +149,11 @@
 
 :root {
   --mati-nav-bar-content: 3rem;
-  --mati-safe-bottom: var(--mati-safe-bottom-locked, 0px);
+  --mati-safe-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    var(--mati-safe-bottom-locked, 0px)
+  );
+  --mati-vv-bottom-offset: 0px;
   --mati-bottom-nav-total: calc(var(--mati-nav-bar-content) + var(--mati-safe-bottom));
   /* Compact touch scale — ~40px targets, readable type */
   --mati-touch: 2.5rem;
@@ -244,14 +248,20 @@
 /* Fixed tab bar — constant size; not part of the flex height budget */
 .app-bottom-nav {
   position: fixed;
-  bottom: 0;
+  bottom: var(--mati-vv-bottom-offset, 0px);
   left: 0;
   right: 0;
   z-index: 40;
   box-sizing: border-box;
-  padding-bottom: var(--mati-safe-bottom);
+  /* Live env() + interim floor while env is still 0 on cold start */
+  padding-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    var(--mati-safe-bottom-locked, 0px)
+  );
   border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background-color: var(--background);
+  /* Promote layer — reduces iOS PWA “floating nav until first gesture” glitches */
+  transform: translateZ(0);
 }
 
 @media (min-width: 1024px) {
