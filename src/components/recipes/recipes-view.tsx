@@ -19,9 +19,9 @@ import { prefetchRecipeDetail } from "@/lib/query/prefetch-recipe-detail";
 
 function RecipesSkeleton() {
   return (
-    <ul className="space-y-2 animate-pulse" aria-hidden>
-      {[1, 2, 3].map((i) => (
-        <li key={i} className="h-16 rounded-2xl bg-muted/60" />
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-hidden>
+      {[1, 2, 3, 4].map((i) => (
+        <li key={i} className="h-16 animate-pulse rounded-2xl bg-muted/60" />
       ))}
     </ul>
   );
@@ -122,7 +122,7 @@ export function RecipesView({ householdId }: { householdId: string }) {
           />
         )
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {filtered.map((recipe) => (
             <li key={recipe.id}>
               <Link
@@ -130,7 +130,7 @@ export function RecipesView({ householdId }: { householdId: string }) {
                 prefetch
                 onPointerEnter={() => warmRecipe(recipe.id)}
                 onTouchStart={() => warmRecipe(recipe.id)}
-                className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-3 transition-colors hover:bg-muted/50 active:bg-muted"
+                className="flex h-full items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-3 transition-colors duration-150 hover:bg-muted/50 active:scale-[0.99] active:bg-muted"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{recipe.title}</p>

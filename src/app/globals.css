@@ -158,10 +158,34 @@
   --mati-text-body: 0.9375rem;
   /* Horizontal page gutter — tighter than px-4, still off the screen edge */
   --mati-page-x: 0.75rem;
+  /* Content column: phone → tablet → desktop */
+  --mati-content-max: 32rem;
+  --mati-side-nav-width: 0px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --mati-page-x: 1.25rem;
+    --mati-content-max: 40rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --mati-page-x: 1.5rem;
+    --mati-content-max: 48rem;
+    --mati-side-nav-width: 13.5rem;
+    --mati-bottom-nav-total: 0px;
+  }
 }
 
 .mati-page-x {
   padding-inline: var(--mati-page-x);
+}
+
+.mati-content {
+  width: 100%;
+  max-width: var(--mati-content-max);
 }
 
 .mati-ingredient-list {
@@ -191,8 +215,28 @@
   min-height: 100dvh;
 }
 
+.app-shell__column {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 @supports (height: 100dvh) {
   .app-shell {
+    min-height: 100dvh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .app-shell__column {
+    min-height: 100svh;
     min-height: 100dvh;
   }
 }
@@ -210,6 +254,34 @@
   background-color: var(--background);
 }
 
+@media (min-width: 1024px) {
+  .app-bottom-nav {
+    display: none;
+  }
+}
+
+.app-side-nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .app-side-nav {
+    display: flex;
+    width: var(--mati-side-nav-width);
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background-color: var(--background);
+    padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100svh;
+    height: 100dvh;
+  }
+}
+
 .app-bottom-nav__bar {
   height: var(--mati-nav-bar-content);
   min-height: var(--mati-nav-bar-content);
@@ -225,6 +297,14 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  /* Faster tap response on mobile */
+  touch-action: manipulation;
+}
+
+@media (min-width: 1024px) {
+  .app-main-scroll {
+    padding-bottom: 1.5rem;
+  }
 }
 
 .scrollbar-hide {

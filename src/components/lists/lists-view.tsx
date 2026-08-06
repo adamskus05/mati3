@@ -84,7 +84,7 @@ function SortableListRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-0.5 overflow-hidden rounded-xl border border-border/60 bg-card",
+        "flex h-full items-center gap-0.5 overflow-hidden rounded-xl border border-border/60 bg-card transition-shadow duration-150",
         isDragging && "z-10 shadow-md ring-1 ring-border"
       )}
     >
@@ -104,7 +104,7 @@ function SortableListRow({
         prefetch
         onPointerEnter={onWarm}
         onTouchStart={onWarm}
-        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 pl-2.5 pr-1 transition-colors hover:bg-muted/40 active:bg-muted/60"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 pl-2.5 pr-1 transition-colors duration-150 hover:bg-muted/40 active:bg-muted/60"
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium leading-tight">{list.name}</p>
@@ -450,7 +450,14 @@ export function ListsView({ householdId }: { householdId: string }) {
             items={sortedLists.map((l) => l.id)}
             strategy={verticalListSortingStrategy}
           >
-            <ul className="space-y-1.5">
+            <ul
+              className={cn(
+                "gap-1.5",
+                sortMode === "manual"
+                  ? "space-y-1.5"
+                  : "grid grid-cols-1 sm:grid-cols-2"
+              )}
+            >
               {sortedLists.map((list) => (
                 <SortableListRow
                   key={list.id}
