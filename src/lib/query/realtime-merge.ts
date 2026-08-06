@@ -23,7 +23,9 @@ function rowToItem(row: Record<string, unknown>): ShoppingItemWithCompleter {
     updated_at: String(row.updated_at ?? ""),
     completed_by: (row.completed_by as string | null) ?? null,
     completed_at: (row.completed_at as string | null) ?? null,
+    created_by: (row.created_by as string | null) ?? null,
     completer: undefined,
+    creator: undefined,
   };
 }
 
@@ -48,6 +50,8 @@ export function applyShoppingItemRealtime(
       ...current,
       rowToItem(newRow),
     ]);
+    // Resolve creator/completer names via refetch (joins not in realtime payload)
+    debouncedInvalidate(queryClient, queryKey);
     return;
   }
 
@@ -60,10 +64,18 @@ export function applyShoppingItemRealtime(
     queryClient.setQueryData<ShoppingItemWithCompleter[]>(queryKey, (old) =>
       old?.map((i) =>
         i.id === id
-          ? { ...i, ...rowToItem(newRow), completer: i.completer }
+          ? {
+              ...i,
+              ...rowToItem(newRow),
+              completer: i.completer,
+              creator: i.creator,
+            }
           : i
       )
     );
+    if (newRow.completed_by && !current.find((i) => i.id === id)?.completer) {
+      debouncedInvalidate(queryClient, queryKey);
+    }
     return;
   }
 

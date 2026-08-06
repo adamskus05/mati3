@@ -29,6 +29,8 @@ import { fetchList } from "@/lib/queries/lists";
 import { fetchCategories } from "@/lib/queries/categories";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { enqueueMutation } from "@/lib/offline/mutation-queue";
+import { notifyPartnerPush } from "@/lib/push/notify-partner";
+import { PartnerItemSignals } from "@/components/items/partner-item-signals";
 import { findListDuplicate } from "@/lib/items/find-list-duplicate";
 import {
   canMergeUnits,
@@ -215,7 +217,16 @@ export function ShoppingListDetail({
       (old) =>
         old?.map((i) =>
           i.id === item.id
-            ? { ...i, completed, sort_order, completed_at, completed_by }
+            ? {
+                ...i,
+                completed,
+                sort_order,
+                completed_at,
+                completed_by,
+                completer: completed
+                  ? { display_name: "Du", email: "" }
+                  : null,
+              }
             : i
         )
     );
@@ -374,7 +385,9 @@ export function ShoppingListDetail({
       updated_at: new Date().toISOString(),
       completed_by: null,
       completed_at: null,
+      created_by: userId,
       completer: null,
+      creator: { display_name: "Du", email: "" },
     };
 
     const previous = queryClient.getQueryData<ShoppingItemWithCompleter[]>(
@@ -409,8 +422,15 @@ export function ShoppingListDetail({
           name,
           category_id: categoryId,
           sort_order,
+          created_by: userId,
         })
-        .select()
+        .select(
+          `
+          *,
+          completer:profiles!shopping_items_completed_by_fkey ( display_name, email ),
+          creator:profiles!shopping_items_created_by_fkey ( display_name, email )
+        `
+        )
         .single();
 
       if (error) {
@@ -423,9 +443,17 @@ export function ShoppingListDetail({
         QUERY_KEYS.items(listId),
         (old) =>
           old?.map((i) =>
-            i.id === tempId ? { ...data, completer: null } : i
+            i.id === tempId ? (data as ShoppingItemWithCompleter) : i
           )
       );
+
+      const listLabel = list?.name?.trim() || "listan";
+      notifyPartnerPush({
+        householdId,
+        eventType: "list_items_added",
+        body: `${name} lades till på ${listLabel}`,
+        url: `/h/${householdId}/lists/${listId}`,
+      });
     })();
   }
 
@@ -553,7 +581,11 @@ export function ShoppingListDetail({
       ...previous,
       shopper_id: shopperId,
       shopper_started_at: startedAt,
-      shopper: shopperId ? previous.shopper : null,
+      shopper: shopperId
+        ? shopperId === userId
+          ? { display_name: "Du", email: "" }
+          : previous.shopper
+        : null,
     });
     return previous;
   }
@@ -568,7 +600,19 @@ export function ShoppingListDetail({
           if (previous) {
             queryClient.setQueryData(QUERY_KEYS.list(listId), previous);
           }
+          return;
         }
+        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list(listId) });
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.lists(householdId),
+        });
+        const listLabel = list?.name?.trim() || "listan";
+        notifyPartnerPush({
+          householdId,
+          eventType: "shopping_started",
+          body: `Någon började handla: ${listLabel}`,
+          url: `/h/${householdId}/lists/${listId}`,
+        });
       });
   }
 
@@ -582,7 +626,19 @@ export function ShoppingListDetail({
           if (previous) {
             queryClient.setQueryData(QUERY_KEYS.list(listId), previous);
           }
+          return;
         }
+        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list(listId) });
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.lists(householdId),
+        });
+        const listLabel = list?.name?.trim() || "listan";
+        notifyPartnerPush({
+          householdId,
+          eventType: "shopping_ended",
+          body: `Någon slutade handla: ${listLabel}`,
+          url: `/h/${householdId}/lists/${listId}`,
+        });
       });
   }
 
@@ -590,6 +646,7 @@ export function ShoppingListDetail({
 
   return (
     <div className={cn("pb-4", readOnly ? "space-y-3" : "space-y-0")}>
+      {!readOnly && <PartnerItemSignals items={items} userId={userId} />}
       <div
         className={cn(
           "flex shrink-0 items-center gap-2",

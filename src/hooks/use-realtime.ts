@@ -136,6 +136,18 @@ export function useListItemsRealtime(listId: string) {
           );
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "shopping_lists",
+          filter: `id=eq.${listId}`,
+        },
+        () => {
+          debouncedInvalidate(queryClient, QUERY_KEYS.list(listId));
+        }
+      )
       .subscribe();
 
     return () => {

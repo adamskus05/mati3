@@ -65,13 +65,12 @@ ORDER BY created_at DESC;
 
 ## Eventtyper som skickar push
 
-| `event_type` | När | Loggas i DB idag? |
-|--------------|-----|-------------------|
-| `member_joined` | Ny medlem via kod | Ja |
-| `shopping_started` | Någon börjar handla | Ja |
-| `list_items_added` | Nya varor på lista | **Nej** (mappad i Edge men ingen RPC loggar än) |
+| Källa | När | Hur |
+|-------|-----|-----|
+| App → Edge (`push-send` + JWT) | Partner lägger till vara / börjar eller slutar handla | Primär väg för par-vardag |
+| Database Webhook → Edge | `member_joined` | Valfri; övriga eventtyper hoppas över (`skipped`) |
 
-Inställningstexten nämner “lägger till varor” – den push-typen kräver framtida `log_household_event` vid batch-tillägg.
+Aktivera push under Inställningar i den installerade PWA:n. Båda i hushållet behöver ha push på.
 
 ## Felsökning
 

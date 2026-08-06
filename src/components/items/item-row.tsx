@@ -52,6 +52,10 @@ function ItemRowInner({
     item.completed && item.completer
       ? profileDisplayName(item.completer)
       : null;
+  const addedBy =
+    !item.completed && item.creator
+      ? profileDisplayName(item.creator)
+      : null;
 
   return (
     <li
@@ -111,10 +115,16 @@ function ItemRowInner({
             {item.notes}
           </span>
         )}
-        {completedBy && (
+        {completedBy ? (
           <span className="block text-[10px] leading-tight text-muted-foreground">
             Av {completedBy}
           </span>
+        ) : (
+          addedBy && (
+            <span className="block text-[10px] leading-tight text-muted-foreground">
+              {addedBy} lade till
+            </span>
+          )
         )}
       </button>
       {!readOnly && !selectMode && (

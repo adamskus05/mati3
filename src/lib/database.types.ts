@@ -43,6 +43,7 @@ export type ShoppingListWithCreator = ShoppingList & {
 
 export type ShoppingItemWithCompleter = ShoppingItem & {
   completer?: Pick<Profile, "display_name" | "email"> | null;
+  creator?: Pick<Profile, "display_name" | "email"> | null;
 };
 
 export type HouseholdMemberRole = "owner" | "member";

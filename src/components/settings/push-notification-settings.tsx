@@ -96,7 +96,8 @@ export function PushNotificationSettings({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Få notis när någon går med, handlar eller lägger till varor.
+          Få notis när partnern börjar handla eller lägger till varor. Kräver
+          installerad PWA och tillåtna notiser.
         </p>
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="push-toggle">Push-notiser</Label>

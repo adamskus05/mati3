@@ -1,7 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
-type PushEventType = "member_joined" | "list_items_added" | "shopping_started";
+type PushEventType =
+  | "member_joined"
+  | "list_items_added"
+  | "shopping_started"
+  | "shopping_ended";
 
 type SendBody = {
   householdId: string;
@@ -19,28 +23,25 @@ type SupabaseWebhookPayload = {
     household_id?: string;
     actor_id?: string | null;
     event_type?: string;
+    metadata?: Record<string, unknown> | null;
   };
 };
 
 function messageForEventType(
-  eventType: string
-): { pushType: PushEventType; body: string } | null {
+  eventType: string,
+  _metadata?: Record<string, unknown> | null
+): { pushType: PushEventType; body: string; urlSuffix?: string } | null {
   switch (eventType) {
     case "member_joined":
       return { pushType: "member_joined", body: "Någon gick med i hushållet" };
-    case "shopping_started":
-      return { pushType: "shopping_started", body: "Någon började handla" };
-    case "list_items_added":
-      return {
-        pushType: "list_items_added",
-        body: "Nya varor lades till på listan",
-      };
+    // shopping_* and list_items_added are sent from the app (authenticated
+    // push-send) with richer copy — skip webhook to avoid duplicate notifies.
     default:
       return null;
   }
 }
 
-export function parseSendBody(raw: unknown): SendBody | null {
+export function parseSendBody(raw: unknown): SendBody | { skipped: true } | null {
   if (!raw || typeof raw !== "object") return null;
 
   const direct = raw as Partial<SendBody> & SupabaseWebhookPayload;
@@ -61,15 +62,21 @@ export function parseSendBody(raw: unknown): SendBody | null {
     direct.table === "household_events" &&
     record?.household_id
   ) {
-    const mapped = messageForEventType(record.event_type ?? "");
-    if (!mapped) return null;
+    const mapped = messageForEventType(
+      record.event_type ?? "",
+      record.metadata
+    );
+    if (!mapped) {
+      // Ignore non-push events so Database Webhooks don't retry as errors
+      return { skipped: true };
+    }
 
     return {
       householdId: record.household_id,
       eventType: mapped.pushType,
       title: "Mati",
       body: mapped.body,
-      url: `/h/${record.household_id}`,
+      url: `/h/${record.household_id}${mapped.urlSuffix ?? ""}`,
       excludeUserId: record.actor_id ?? undefined,
     };
   }
@@ -89,13 +96,19 @@ function configureWebPush() {
 }
 
 export async function runPushSend(raw: unknown): Promise<Response> {
-  const body = parseSendBody(raw);
-  if (!body) {
+  const parsed = parseSendBody(raw);
+  if (!parsed) {
     return new Response(JSON.stringify({ error: "Missing fields" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
+  if ("skipped" in parsed) {
+    return new Response(JSON.stringify({ sent: 0, skipped: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const body = parsed;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -117,7 +130,7 @@ export async function runPushSend(raw: unknown): Promise<Response> {
     .filter((id: string) => id !== body.excludeUserId);
 
   if (userIds.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), {
+    return new Response(JSON.stringify({ sent: 0, eventType: body.eventType }), {
       headers: { "Content-Type": "application/json" },
     });
   }

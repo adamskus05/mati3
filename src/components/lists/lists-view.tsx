@@ -31,6 +31,7 @@ import { useHouseholdRealtime } from "@/hooks/use-realtime";
 import { useOnline } from "@/hooks/use-online";
 import { registerUndo } from "@/lib/undo/undo-action";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -48,12 +49,14 @@ import {
   Trash2,
   GripVertical,
   ShoppingBag,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { profileDisplayName } from "@/lib/profiles/display-name";
 import { ListsSkeleton } from "@/components/lists/lists-skeleton";
 import type { ShoppingListWithCreator } from "@/lib/database.types";
 import { ListSortMenu } from "@/components/lists/list-sort-menu";
+import { isShopperActive } from "@/components/items/list-shopper-bar";
 import { cn } from "@/lib/utils";
 import { prefetchListDetail } from "@/lib/query/prefetch-list-detail";
 import { isStandalonePwa } from "@/lib/pwa/standalone";
@@ -113,6 +116,17 @@ function SortableListRow({
             })}
           </p>
         </div>
+        {isShopperActive(list) && (
+          <Badge
+            variant="secondary"
+            className="h-6 max-w-[7.5rem] shrink-0 gap-1 truncate border-primary/20 bg-primary/10 px-1.5 text-[10px] font-medium text-primary"
+          >
+            <ShoppingCart className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              {profileDisplayName(list.shopper ?? undefined) || "Handlar"}
+            </span>
+          </Badge>
+        )}
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/80" />
       </Link>
       <div className="flex shrink-0 pr-0.5">

@@ -539,6 +539,7 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           created_at: string
+          created_by: string | null
           id: string
           name: string
           notes: string | null
@@ -554,6 +555,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -569,6 +571,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           name?: string
           notes?: string | null
@@ -589,6 +592,13 @@ export type Database = {
           {
             foreignKeyName: "shopping_items_completed_by_fkey"
             columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopping_items_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
