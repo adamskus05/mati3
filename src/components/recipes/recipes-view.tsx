@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ChevronRight, Search, ChefHat } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -27,12 +28,28 @@ function RecipesSkeleton() {
   );
 }
 
+function parseCategoryParam(raw: string | null): RecipeCategoryFilter {
+  if (!raw || raw === "all") return "all";
+  return raw;
+}
+
 export function RecipesView({ householdId }: { householdId: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<RecipeCategoryFilter>("all");
+  const categoryFilter = parseCategoryParam(searchParams.get("category"));
   const queryClient = useQueryClient();
 
   useHouseholdRealtime(householdId);
+
+  function setCategoryFilter(value: RecipeCategoryFilter) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("category");
+    else params.set("category", value);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   function warmRecipe(recipeId: string) {
     prefetchRecipeDetail(queryClient, recipeId);
@@ -49,6 +66,17 @@ export function RecipesView({ householdId }: { householdId: string }) {
     queryFn: () => fetchRecipeCategories(createClient(), householdId),
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        `mati:recipesReturn:${householdId}`,
+        `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+      );
+    } catch {
+      /* private mode */
+    }
+  }, [householdId, pathname, searchParams]);
 
   useEffect(() => {
     for (const recipe of recipes.slice(0, 4)) {

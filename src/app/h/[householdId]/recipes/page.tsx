@@ -1,4 +1,5 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { fetchRecipes } from "@/lib/queries/recipes";
 import { fetchRecipeCategories } from "@/lib/queries/recipe-categories";
@@ -33,7 +34,9 @@ export default async function RecipesPage({
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <RecipesView householdId={householdId} />
+      <Suspense fallback={null}>
+        <RecipesView householdId={householdId} />
+      </Suspense>
     </HydrationBoundary>
   );
 }

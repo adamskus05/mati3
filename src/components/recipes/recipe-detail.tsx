@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
   ExternalLink,
   Pencil,
   ShoppingCart,
@@ -20,6 +19,7 @@ import type {
 import { QUERY_KEYS } from "@/lib/constants";
 import { useOnline } from "@/hooks/use-online";
 import { ExportRecipeDialog } from "@/components/recipes/export-recipe-dialog";
+import { RecipesBackLink } from "@/components/recipes/recipes-back-link";
 import {
   RecipeScalePanel,
   useRecipeIngredientScale,
@@ -221,12 +221,7 @@ export function RecipeDetail({
   return (
     <div className="space-y-4 pb-6">
       <div className="flex items-start gap-2">
-        <Link
-          href={`/h/${householdId}/recipes`}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md hover:bg-muted"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <RecipesBackLink householdId={householdId} />
         <div className="min-w-0 flex-1">
           <h1 className="font-heading text-[length:var(--mati-text-title)] font-semibold">
             {recipe.title}
